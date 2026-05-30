@@ -1,0 +1,6 @@
+{
+  "name": "Hành Trình Tri Thức",
+  "description": "Trò chơi giáo dục RPG phiêu lưu kỳ thú dành cho học viên giúp học tập hiệu quả, chuyên cần tại Trung tâm Tin học Sao Việt.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
