@@ -7,6 +7,8 @@ import { useState, useEffect } from 'react';
 import { Player, ShopItem, Quest, Mail, Guild } from './types';
 import { sound } from './components/SoundManager';
 import { REGIONS, SHOP_ITEMS, DAILY_QUESTS_TEMPLATE, ACHIEVEMENTS, INITIAL_MAILS, GUILDS } from './data/gameData';
+import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { db } from './lib/firebase';
 
 // Các component con của game RPG
 import CharacterCreate from './components/CharacterCreate';
@@ -119,10 +121,92 @@ export default function App() {
     }
   }, []);
 
-  // 2. Tự động Lưu trữ LocalStorage mỗi khi player / quest thay đổi
+  // 1b. Tải thông tin tháp thám hiểm từ Đám mây Firestore khi sòng số điện thoại đăng nhập thành công
+  useEffect(() => {
+    if (!player || player.id === 'admin_teacher') return;
+
+    const fetchCloudData = async () => {
+      try {
+        const { getDoc, getDocs } = await import('firebase/firestore');
+        
+        // Tải Mails từ Firestore
+        const sysMailsSnap = await getDocs(collection(db, 'mails'));
+        const cloudMails: Mail[] = [];
+        sysMailsSnap.forEach((docSnap) => {
+          cloudMails.push(docSnap.data() as Mail);
+        });
+        if (cloudMails.length > 0) {
+          cloudMails.sort((a, b) => b.date.localeCompare(a.date));
+          setMails(cloudMails);
+          localStorage.setItem('stv_mails', JSON.stringify(cloudMails));
+        } else {
+          for (const m of INITIAL_MAILS) {
+            await setDoc(doc(db, 'mails', m.id), m);
+          }
+          setMails(INITIAL_MAILS);
+        }
+
+        // Tải Guilds từ Firestore
+        const guildsSnap = await getDocs(collection(db, 'guilds'));
+        const cloudGuilds: Guild[] = [];
+        guildsSnap.forEach((docSnap) => {
+          cloudGuilds.push(docSnap.data() as Guild);
+        });
+        if (cloudGuilds.length > 0) {
+          setGuilds(cloudGuilds);
+          localStorage.setItem('stv_guilds', JSON.stringify(cloudGuilds));
+        } else {
+          for (const g of GUILDS) {
+            await setDoc(doc(db, 'guilds', g.id), g);
+          }
+          setGuilds(GUILDS);
+        }
+
+        // Tải Lịch sử quà quy đổi của cả hệ thống
+        const historySnap = await getDocs(collection(db, 'purchase_history'));
+        const cloudHistory: any[] = [];
+        historySnap.forEach((docSnap) => {
+          cloudHistory.push(docSnap.data());
+        });
+        cloudHistory.sort((a, b) => b.id.localeCompare(a.id));
+        setPurchaseHistory(cloudHistory);
+        localStorage.setItem('stv_history', JSON.stringify(cloudHistory));
+
+        // Kiểm tra thông tin cập nhật mới nhất của chính player từ Firestore
+        const playerDocSnap = await getDoc(doc(db, 'players', player.id));
+        if (playerDocSnap.exists()) {
+          const freshPlayer = playerDocSnap.data() as Player;
+          setPlayer(freshPlayer);
+          localStorage.setItem('stv_player', JSON.stringify(freshPlayer));
+        }
+      } catch (err) {
+        console.error('Error fetching data from Firestore:', err);
+      }
+    };
+
+    fetchCloudData();
+  }, [player?.id]);
+
+  // 2. Tự động Lưu trữ LocalStorage và Đám mây Firestore mỗi khi player thay đổi (Debounce 500ms)
   useEffect(() => {
     if (player) {
       localStorage.setItem('stv_player', JSON.stringify(player));
+
+      if (player.id === 'admin_teacher') return;
+
+      const syncToCloud = async () => {
+        try {
+          await setDoc(doc(db, 'players', player.id), player, { merge: true });
+        } catch (err) {
+          console.error('Error syncing player profile to Firestore:', err);
+        }
+      };
+
+      const timerId = setTimeout(() => {
+        syncToCloud();
+      }, 500);
+
+      return () => clearTimeout(timerId);
     }
   }, [player]);
 
@@ -155,6 +239,21 @@ export default function App() {
   useEffect(() => {
     if (guilds.length > 0) {
       localStorage.setItem('stv_guilds', JSON.stringify(guilds));
+
+      const syncGuildsToCloud = async () => {
+        try {
+          for (const guild of guilds) {
+            await setDoc(doc(db, 'guilds', guild.id), guild, { merge: true });
+          }
+        } catch (err) {
+          console.error('Error syncing guilds to Firestore:', err);
+        }
+      };
+
+      const timerId = setTimeout(() => {
+        syncGuildsToCloud();
+      }, 1000);
+      return () => clearTimeout(timerId);
     }
   }, [guilds]);
 
@@ -571,6 +670,8 @@ export default function App() {
 
     const newHistoryItem = {
       id: 'h_' + Date.now(),
+      playerId: player.id,
+      playerName: player.name,
       name: gift.name,
       date: dateStr,
       code: verifyCode,
@@ -578,6 +679,11 @@ export default function App() {
     };
 
     setPurchaseHistory([newHistoryItem, ...purchaseHistory]);
+
+    // Cũng lưu mốc lên Firestore purchase_history
+    setDoc(doc(db, 'purchase_history', newHistoryItem.id), newHistoryItem).catch(err => {
+      console.error('Error saving gift redemption to Firestore:', err);
+    });
 
     setPlayer({
       ...player,
@@ -1071,10 +1177,30 @@ export default function App() {
               activePlayer={player}
               onUpdateActivePlayer={(updated) => setPlayer(updated)}
               mails={mails}
-              onAddMail={(newMail) => setMails(prev => [newMail, ...prev])}
+              onAddMail={async (newMail) => {
+                setMails(prev => [newMail, ...prev]);
+                try {
+                  await setDoc(doc(db, 'mails', newMail.id), newMail);
+                } catch (err) {
+                  console.error('Error saving new mail to Firestore:', err);
+                }
+              }}
               onBackToMap={() => { sound.playClick(); setActiveTab('map'); }}
               purchaseHistory={purchaseHistory}
-              onUpdatePurchaseHistory={(updatedHistory) => setPurchaseHistory(updatedHistory)}
+              onUpdatePurchaseHistory={async (updatedHistory) => {
+                setPurchaseHistory(updatedHistory);
+                try {
+                  for (const item of updatedHistory) {
+                    await setDoc(doc(db, 'purchase_history', item.id), {
+                      ...item,
+                      playerId: item.playerId || player.id,
+                      playerName: item.playerName || player.name
+                    }, { merge: true });
+                  }
+                } catch (err) {
+                  console.error('Error updating purchase history in Firestore:', err);
+                }
+              }}
               onSimulateNextDay={simulateNextDay}
               onLogoutStudent={handlePlayerLogout}
             />

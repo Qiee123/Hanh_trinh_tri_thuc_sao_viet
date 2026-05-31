@@ -1,0 +1,101 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net - Default Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Input Validations
+    function isValidPlayer(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 128
+        && (data.grade == 'grade_1' || data.grade == 'grade_2' || data.grade == 'grade_3' || data.grade == 'grade_4' || data.grade == 'grade_5')
+        && (data.archetype == 'warrior' || data.archetype == 'mage' || data.archetype == 'stem' || data.archetype == 'ninja')
+        && data.level is int && data.level >= 1
+        && data.exp is int && data.exp >= 0
+        && data.gold is int && data.gold >= 0
+        && data.gem is int && data.gem >= 0
+        && (!('phoneNumber' in data) || (data.phoneNumber is string && data.phoneNumber.size() <= 20))
+        && (!('password' in data) || (data.password is string && data.password.size() <= 50));
+    }
+
+    function isValidMail(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() <= 200
+        && data.sender is string && data.sender.size() <= 128
+        && data.content is string && data.content.size() <= 5000
+        && data.date is string && data.date.size() <= 50;
+    }
+
+    function isValidGuild(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 128
+        && data.logo is string && data.logo.size() <= 128
+        && data.membersCount is int && data.membersCount >= 0
+        && data.totalExp is int && data.totalExp >= 0
+        && data.level is int && data.level >= 1
+        && data.leader is string && data.leader.size() <= 128;
+    }
+
+    function isValidPurchaseHistoryItem(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.playerId is string && data.playerId.size() <= 128
+        && data.playerName is string && data.playerName.size() <= 128
+        && data.name is string && data.name.size() <= 256
+        && data.date is string && data.date.size() <= 50
+        && data.code is string && data.code.size() <= 50
+        && data.claimed is bool;
+    }
+
+    // Rules for Players
+    match /players/{playerId} {
+      allow get: if isValidId(playerId);
+      allow list: if true;
+      allow create: if isValidId(playerId) && isValidPlayer(incoming());
+      allow update: if isValidId(playerId) && isValidPlayer(incoming());
+      allow delete: if isValidId(playerId);
+    }
+
+    // Rules for Mails
+    match /mails/{mailId} {
+      allow get: if isValidId(mailId);
+      allow list: if true;
+      allow create: if isValidId(mailId) && isValidMail(incoming());
+      allow update: if isValidId(mailId) && isValidMail(incoming());
+      allow delete: if isValidId(mailId);
+    }
+
+    // Rules for Guilds
+    match /guilds/{guildId} {
+      allow get: if isValidId(guildId);
+      allow list: if true;
+      allow create: if isValidId(guildId) && isValidGuild(incoming());
+      allow update: if isValidId(guildId) && isValidGuild(incoming());
+      allow delete: if isValidId(guildId);
+    }
+
+    // Rules for Purchase History
+    match /purchase_history/{itemId} {
+      allow get: if isValidId(itemId);
+      allow list: if true;
+      allow create: if isValidId(itemId) && isValidPurchaseHistoryItem(incoming());
+      allow update: if isValidId(itemId) && isValidPurchaseHistoryItem(incoming());
+      allow delete: if isValidId(itemId);
+    }
+  }
+}

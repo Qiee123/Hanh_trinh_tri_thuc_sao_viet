@@ -1,0 +1,110 @@
+{
+  "entities": {
+    "Player": {
+      "title": "Player",
+      "description": "Sao Viet RPG active student profile containing levels, exp, gold, inventory, and login credentials",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique phone-bound user ID" },
+        "name": { "type": "string", "description": "Student full name" },
+        "grade": { "type": "string", "enum": ["grade_1", "grade_2", "grade_3", "grade_4", "grade_5"] },
+        "archetype": { "type": "string", "enum": ["warrior", "mage", "stem", "ninja"] },
+        "level": { "type": "integer" },
+        "exp": { "type": "integer" },
+        "expToNextLevel": { "type": "integer" },
+        "hp": { "type": "integer" },
+        "maxHp": { "type": "integer" },
+        "gold": { "type": "integer" },
+        "gem": { "type": "integer" },
+        "title": { "type": "string" },
+        "consecutiveDays": { "type": "integer" },
+        "totalDays": { "type": "integer" },
+        "lastCheckInDate": { "type": "string" },
+        "checkedInToday": { "type": "boolean" },
+        "checkInHistory": { "type": "array" },
+        "stats": { "type": "object" },
+        "inventory": { "type": "array" },
+        "equipped": { "type": "object" },
+        "pet": { "type": "string" },
+        "petLevel": { "type": "integer" },
+        "petExp": { "type": "integer" },
+        "unlockedRegions": { "type": "array" },
+        "completedStages": { "type": "object" },
+        "achievements": { "type": "array" },
+        "unlockedTitles": { "type": "array" },
+        "mailRead": { "type": "array" },
+        "mailClaimed": { "type": "array" },
+        "guildId": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "password": { "type": "string", "description": "Da + 10-digit phone login password" },
+        "classCode": { "type": "string" },
+        "studyScheduleDays": { "type": "string", "enum": ["2-4-6", "3-5-7"] },
+        "studyScheduleShift": { "type": "string" },
+        "attendanceCount": { "type": "integer" }
+      },
+      "required": ["id", "name", "grade", "archetype", "level", "exp", "gold", "gem", "phoneNumber", "password"]
+    },
+    "Mail": {
+      "title": "Mail",
+      "description": "Mail or broadcast sent from the teacher to individual or all students",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "sender": { "type": "string" },
+        "content": { "type": "string" },
+        "date": { "type": "string" },
+        "reward": { "type": "object" }
+      },
+      "required": ["id", "title", "sender", "content", "date"]
+    },
+    "Guild": {
+      "title": "Guild",
+      "description": "Student guild of Sao Viet RPG game",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "logo": { "type": "string" },
+        "membersCount": { "type": "integer" },
+        "totalExp": { "type": "integer" },
+        "level": { "type": "integer" },
+        "leader": { "type": "string" }
+      },
+      "required": ["id", "name", "logo", "membersCount", "totalExp", "level", "leader"]
+    },
+    "PurchaseHistoryItem": {
+      "title": "PurchaseHistoryItem",
+      "description": "Reward/gift claim transaction history",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "playerId": { "type": "string" },
+        "playerName": { "type": "string" },
+        "name": { "type": "string" },
+        "date": { "type": "string" },
+        "code": { "type": "string" },
+        "claimed": { "type": "boolean" }
+      },
+      "required": ["id", "playerId", "playerName", "name", "date", "code", "claimed"]
+    }
+  },
+  "firestore": {
+    "/players/{playerId}": {
+      "schema": "Player",
+      "description": "Sao Viet RPG student profiles"
+    },
+    "/mails/{mailId}": {
+      "schema": "Mail",
+      "description": "System and teacher broadcast messages"
+    },
+    "/guilds/{guildId}": {
+      "schema": "Guild",
+      "description": "Cooperative guilds formed by students"
+    },
+    "/purchase_history/{itemId}": {
+      "schema": "PurchaseHistoryItem",
+      "description": "Logged gift and physical merchandise claims"
+    }
+  }
+}

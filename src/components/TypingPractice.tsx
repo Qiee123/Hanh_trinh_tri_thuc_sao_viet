@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Player } from '../types';
 import { sound } from './SoundManager';
-import { Keyboard, ArrowRight, Play, RefreshCw, Award, Volume2, Key, Sparkles } from 'lucide-react';
+import { Keyboard, ArrowRight, Play, RefreshCw, Award, Volume2, Lock, CheckCircle, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface TypingPracticeProps {
@@ -15,41 +15,83 @@ interface TypingPracticeProps {
   onBackToQuests: () => void;
 }
 
-// Danh sách các từ, lệnh và phím tắt dành cho học viên ôn tập thiết kế đặc trị theo từng Lớp học
-const GRADE_PHRASES: Record<string, { text: string; desc: string; category: string }[]> = {
-  grade_1: [
-    { text: 'em yeu lop 1', desc: 'Em yêu lớp 1 - Tập gõ phím cơ bản rèn chữ cái tiếng Việt', category: 'slogan' },
-    { text: 'tin hoc sao viet', desc: 'Tin học Sao Việt - Trường học công nghệ tuyệt vời dành cho bé', category: 'slogan' },
-    { text: 'hoc tap cham chi', desc: 'Học tập chăm chỉ - Tập gõ các phím cơ bản thật điêu luyện', category: 'slogan' },
-    { text: 'be go ban phim', desc: 'Bé gõ bàn phím - Luyện gõ phím 10 ngón với tư thế ngồi chuẩn', category: 'exercise' },
-    { text: 'Ctrl + C', desc: 'Phím sao chép đối tượng tiện lợi', category: 'shortcut' }
-  ],
-  grade_2: [
-    { text: 'em hoc go phim 10 ngon', desc: 'Em tập gõ phím mười ngón tay giúp tăng tốc độ gõ chữ', category: 'exercise' },
-    { text: 'tin hoc rat la vui', desc: 'Tin học rất là vui - Khám phá thế giới trò chơi giáo dục kỳ thú', category: 'slogan' },
-    { text: 'may tinh la ban cua em', desc: 'Máy tính là bạn của em - Kính hiển vi kỹ thuật số mở tạ thế giới rộng lớn', category: 'exercise' },
-    { text: 'Ctrl + C va Ctrl + V', desc: 'Tổ hợp phím thần thánh: Sao chép đối tượng rồi Dán nhanh', category: 'shortcut' },
-    { text: 'Ctrl + S de luu bai', desc: 'Ctrl + S để Lưu bài học - Giúp bảo toàn đồ án quý giá', category: 'shortcut' }
-  ],
-  grade_3: [
-    { text: 'hoc tin hoc tren may tinh sao viet', desc: 'Gõ chữ thạo và rèn luyện kỹ năng gõ từ kết hợp không dấu', category: 'exercise' },
-    { text: '=SUM(A1:A5) tinh tong trong excel', desc: 'Hàm SUM - Công cụ tính nhanh tổng các ô dữ liệu trong bảng Excel lớp 3', category: 'office' },
-    { text: 'Ctrl + Z de undo tro lai buoc truoc', desc: 'Nhấn Ctrl + Z khi gõ sai hoặc làm hỏng sơ đồ để quay về bước trước đó', category: 'shortcut' },
-    { text: 'hoc moi ngay manh hon moi ngay', desc: 'Châm ngôn tiến bước rèn luyện tri thức vững chãi của chúng ta', category: 'slogan' }
-  ],
-  grade_4: [
-    { text: 'may tinh co ban phim va chuot nhap du lieu', desc: 'Các thiết bị đầu vào cốt lõi giúp học sinh tương tác học tin học', category: 'office' },
-    { text: 'print("Chao mung ban den voi Python")', desc: 'Dòng lệnh Python đầu đời đón chào em vào thế giới lập trình kỳ thú', category: 'coding' },
-    { text: 'Alt + Tab giup chuyen doi cua so sieu toc', desc: 'Tách biệt công tác học tập: chuyển đổi qua lại nhanh chóng giữa các trang', category: 'shortcut' },
-    { text: 'PowerPoint thiet ke slide thuyet trinh', desc: 'Sử dụng phần mềm trình chiếu PowerPoint để tự tin thuyết trình trước lớp', category: 'office' }
-  ],
-  grade_5: [
-    { text: '<html> giup tao dung cau truc mot trang web xinh dep', desc: 'Học sinh lớp 5 khám phá mã HTML định nghĩa cấu trúc nội dung internet', category: 'coding' },
-    { text: 'SELECT * FROM students WHERE point >= 9', desc: 'Truy vấn SQL nâng cao xuất danh sách các học viên xuất sắc nhất lớp', category: 'coding' },
-    { text: 'Alt + F4 dong ngay ung dung dang chay tren Windows', desc: 'Tổ hợp phím tắt khôi phục không gian màn hình bằng cách tắt ứng dụng nhanh', category: 'shortcut' },
-    { text: 'Ctrl + Shift + T khoi phuc lai tab web vua vo tinh dong', desc: 'Mẹo cứu cánh vô cùng hữu hiệu cho các bạn lỡ tay xóa tab bài học bận rộn', category: 'shortcut' }
-  ]
-};
+interface Lesson {
+  id: number;
+  name: string;
+  desc: string;
+  difficulty: 'Rất Dễ' | 'Dễ' | 'Trung Bình' | 'Khó' | 'Rất Khó' | 'Huyền Thoại';
+  phrases: { text: string; desc: string; category: string }[];
+}
+
+// 6 Bài luyện ngón thông minh rèn từ đơn giản đến khó dần phục vụ trẻ em học tập gõ 10 ngón
+const TYPING_LESSONS: Lesson[] = [
+  {
+    id: 1,
+    name: 'Bài 1: Khởi động - Hàng phím Cơ Sở',
+    desc: 'Bóng tối vỡ ra khi dũng sĩ luyện 8 phím gốc hàng Giữa (Home Row). Hãy đặt 4 ngón tay trái lên A S D F và 4 ngón tay phải lên J K L ; nhẹ nhàng.',
+    difficulty: 'Rất Dễ',
+    phrases: [
+      { text: 'a s d f j k l ;', desc: 'Luyện gõ tuần tự từng ngón tay một cách chậm rãi, đều nhịp.', category: 'exercise' },
+      { text: 'asdf jkl;', desc: 'Gõ liền một lèo tay trái trước tay phải sau liên kết mượt mà.', category: 'exercise' },
+      { text: 'ff jj dd kk ss ll aa ;;', desc: 'Luyện thao tác gập đúp hai lần dứt khoát rèn sức bật đầu ngón.', category: 'exercise' }
+    ]
+  },
+  {
+    id: 2,
+    name: 'Bài 2: Đột phá - Ghép từ hàng Giữa',
+    desc: 'Kết hợp linh hoạt các ngón tay ở hàng giữa nhằm kiến tạo nên các từ ghép tiếng Anh siêu cơ bản.',
+    difficulty: 'Dễ',
+    phrases: [
+      { text: 'sad dad', desc: 'Rèn luyện phản xạ cặp ngón tay trái s, a, d ấm áp.', category: 'exercise' },
+      { text: 'ask fad', desc: 'Khéo léo sang nhịp gõ kết hợp cả hai bên bàn tay trái phải.', category: 'exercise' },
+      { text: 'sad dad ask fad', desc: 'Chuỗi xâu chuỗi rèn luyện cơ tay phản xạ không cần nhìn bàn phím.', category: 'exercise' }
+    ]
+  },
+  {
+    id: 3,
+    name: 'Bài 3: Vươn cao - Hàng Trên cơ bản',
+    desc: 'Trải nghiệm kỹ năng vươn ngón trỏ và ngón giữa lên hàng phím Trên (để gõ phím E, I, R, U).',
+    difficulty: 'Trung Bình',
+    phrases: [
+      { text: 'f r e d j u i k', desc: 'Vươn ngón trỏ lên r, u ; vươn ngón giữa lên e, i nhịp nhàng.', category: 'exercise' },
+      { text: 'rude deer free juice', desc: 'Thiết kế từ tiếng Anh thông dụng rèn cự ly vươn chính xác.', category: 'exercise' },
+      { text: 'em yeu lop hoc tin hoc', desc: 'Tập viết câu tiếng Việt không dấu đơn giản dứt khoát.', category: 'slogan' }
+    ]
+  },
+  {
+    id: 4,
+    name: 'Bài 4: Gập sâu - Trải nghiệm Hàng Dưới',
+    desc: 'Rèn luyện gập đều các ngón xuống hàng phím Dưới (phím Z, X, C, V, B, N, M), rèn sự dẻo dai của khớp tay.',
+    difficulty: 'Khó',
+    phrases: [
+      { text: 'f v c d j n m k', desc: 'Uốn rướn cặp ngón trỏ và ngón giữa gập nhẹ xuống hàng dưới.', category: 'exercise' },
+      { text: 'van back next exam', desc: 'Hành trình mười ngón bay lượn kết nối hàng phím dưới.', category: 'exercise' },
+      { text: 'Ctrl + C va Ctrl + V', desc: 'Thao tác tổ hợp sao chép & dán nhanh nhạy bổ ích.', category: 'shortcut' }
+    ]
+  },
+  {
+    id: 5,
+    name: 'Bài 5: Bứt tốc - Hàng phím Số học',
+    desc: 'Thử thách vươn ngón tay cao nhất lên hàng phím Số trên cùng để chinh phục các chữ số từ 0 đến 9.',
+    difficulty: 'Rất Khó',
+    phrases: [
+      { text: '1 2 3 4 5 6 7 8 9 0', desc: 'Bấm đều đặn cự ly vươn tối đa để chạm đúng dải số.', category: 'exercise' },
+      { text: 'grade 5 is coding 101', desc: 'Luyện phản xạ gõ đan xen nhịp nhàng chữ cái thường và số.', category: 'exercise' },
+      { text: 'toan hoc va tin hoc rat vui', desc: 'Gõ nhanh dải từ vựng toán học lý thú kết hợp phím cách.', category: 'slogan' }
+    ]
+  },
+  {
+    id: 6,
+    name: 'Bài 6: Thạc Dĩ - Lập trình Cú Pháp',
+    desc: 'Khoa mục huyền thoại dành cho lập trình viên nhí: kết hợp ký tự đặc biệt, dấu ngoặc nhọn, nháy kép.',
+    difficulty: 'Huyền Thoại',
+    phrases: [
+      { text: 'print("Hello World")', desc: 'In dòng chữ huyền thoại trong Python chuẩn cú pháp.', category: 'coding' },
+      { text: '<html><body>code</body></html>', desc: 'Gõ thẻ dải xương sườn giao diện trang web HTML mượt mà.', category: 'coding' },
+      { text: 'Ctrl + Shift + T', desc: 'Tổ hợp phím khôi phục nhanh tab hữu dụng tuyệt hảo.', category: 'shortcut' }
+    ]
+  }
+];
 
 interface FingerGuide {
   hand: 'left' | 'right';
@@ -67,11 +109,7 @@ function getFingerGuide(char: string | undefined): FingerGuide | null {
   }
 
   // Left hand pinky
-  if (['1', 'q', 'a', 'z', '!', '`', '~', 'c', 'v'].includes(c)) {
-    // If copying/pasting hotkeys
-    if (c === 'c' || c === 'v') {
-      return { hand: 'left', finger: 'index', fingerName: 'Ngón trỏ trái' };
-    }
+  if (['1', 'q', 'a', 'z', '!', '`', '~'].includes(c)) {
     return { hand: 'left', finger: 'pinky', fingerName: 'Ngón út trái' };
   }
   // Left hand ring
@@ -104,13 +142,19 @@ function getFingerGuide(char: string | undefined): FingerGuide | null {
     return { hand: 'right', finger: 'pinky', fingerName: 'Ngón út phải' };
   }
 
-  // Fallback
   return { hand: 'right', finger: 'pinky', fingerName: 'Ngón út phải' };
 }
 
 export default function TypingPractice({ player, onCompleteTyping, onBackToQuests }: TypingPracticeProps) {
-  const gradeKey = player.grade && GRADE_PHRASES[player.grade] ? player.grade : 'grade_1';
-  const phrasesToUse = GRADE_PHRASES[gradeKey];
+  // Đọc mốc bài luyện ngón đã mở khóa từ localStorage
+  const [unlockedLevel, setUnlockedLevel] = useState<number>(() => {
+    const saved = localStorage.getItem('stv_typing_unlocked_level');
+    return saved ? parseInt(saved, 10) : 1;
+  });
+
+  const [selectedLessonId, setSelectedLessonId] = useState<number>(1);
+  const activeLesson = TYPING_LESSONS.find(l => l.id === selectedLessonId) || TYPING_LESSONS[0];
+  const phrasesToUse = activeLesson.phrases;
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [typedText, setTypedText] = useState('');
@@ -124,7 +168,7 @@ export default function TypingPractice({ player, onCompleteTyping, onBackToQuest
   const [totalKeystrokes, setTotalKeystrokes] = useState(0);
   
   const inputRef = useRef<HTMLInputElement>(null);
-  const currentPhrase = phrasesToUse[currentIndex];
+  const currentPhrase = phrasesToUse[currentIndex] || phrasesToUse[0];
   const nextChar = currentPhrase && !isFinished ? currentPhrase.text[typedText.length] : undefined;
   const activeGuide = nextChar ? getFingerGuide(nextChar) : null;
 
@@ -132,54 +176,74 @@ export default function TypingPractice({ player, onCompleteTyping, onBackToQuest
     if (inputRef.current) {
       inputRef.current.focus();
     }
-  }, [currentIndex, isFinished]);
+  }, [currentIndex, isFinished, selectedLessonId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setTotalKeystrokes(prev => prev + 1);
 
-    // Kiểm tra ký tự vừa nhập vào có gõ đúng với cụm từ mẫu không
     const expected = currentPhrase.text;
     
     if (val === expected) {
-      // Đúng hoàn toàn cụm từ này
       sound.playCorrect();
       setCorrectKeystrokes(prev => prev + 1);
       setTypedText(val);
 
-      // Thưởng vàng tích lũy cho mỗi từ gõ đúng
-      const bonusGold = currentPhrase.category === 'coding' ? 12 : 8;
-      const bonusExp = 5;
+      // Cộng dồn thưởng dựa theo độ khó của từng bài tập
+      const levelMultiplier = selectedLessonId; 
+      const bonusGold = 6 + (levelMultiplier * 2);
+      const bonusExp = 4 + levelMultiplier;
       
       setGoldEarned(prev => prev + bonusGold);
       setExpEarned(prev => prev + bonusExp);
 
-      // Chuyển sang cụm tiếp theo
       if (currentIndex < phrasesToUse.length - 1) {
         setTimeout(() => {
           setTypedText('');
           setCurrentIndex(prev => prev + 1);
-        }, 100);
+        }, 120);
       } else {
-        // Đã hoàn tất toàn bộ bộ gõ phím
+        // Đã hoàn tất toàn bộ bài tập này của khóa hối! Mở khóa bài gõ tiếp theo nếu đạt yêu cầu
         setIsFinished(true);
+        
+        if (selectedLessonId === unlockedLevel && unlockedLevel < TYPING_LESSONS.length) {
+          const nextLevel = unlockedLevel + 1;
+          setUnlockedLevel(nextLevel);
+          localStorage.setItem('stv_typing_unlocked_level', String(nextLevel));
+        }
+
         setTimeout(() => {
           setShowResultCard(true);
           sound.playLevelUp();
         }, 400);
       }
     } else if (expected.startsWith(val)) {
-      // Đang gõ đúng từng phần
       if (val.length > typedText.length) {
         sound.playClick();
         setCorrectKeystrokes(prev => prev + 1);
       }
       setTypedText(val);
     } else {
-      // Gõ sai
       sound.playIncorrect();
-      // Không cập nhật typedText để giữ chữ đúng, bắt buộc học viên sửa lỗi gõ sai
     }
+  };
+
+  const handleSelectLesson = (id: number) => {
+    if (id > unlockedLevel) {
+      sound.playIncorrect();
+      alert('🔒 Bài gõ này đang bị khóa! Em hãy gõ thật chính xác và hoàn thành bài trước để mở khóa nhé.');
+      return;
+    }
+    sound.playClick();
+    setSelectedLessonId(id);
+    setCurrentIndex(0);
+    setTypedText('');
+    setIsFinished(false);
+    setShowResultCard(false);
+    setGoldEarned(0);
+    setExpEarned(0);
+    setCorrectKeystrokes(0);
+    setTotalKeystrokes(0);
   };
 
   const finishAndClaim = () => {
@@ -187,20 +251,19 @@ export default function TypingPractice({ player, onCompleteTyping, onBackToQuest
     onBackToQuests();
   };
 
-  // Tính độ chính xác %
   const accuracy = totalKeystrokes > 0 ? Math.round((correctKeystrokes / totalKeystrokes) * 100) : 100;
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto" id="typing-arena-wrapper">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto" id="typing-arena-wrapper">
       
       {/* HEADER */}
-      <div className="flex justify-between items-center pb-4 border-b border-white/35 mb-6" id="typing-header">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center pb-4 border-b border-indigo-100 mb-6 gap-3" id="typing-header">
         <div>
           <span className="text-[10px] font-mono tracking-widest text-indigo-900 uppercase font-black bg-indigo-50 px-2.5 py-1 rounded">
-            Luyện Gõ Phím 10 Ngón
+            Hệ Thống Luyện Ngón Tiến Trình
           </span>
           <h2 className="text-xl md:text-2xl font-black text-indigo-950 mt-1 flex items-center gap-2">
-            ⌨️ VŨ ĐÀI GO PHÍM SAO VIỆT
+            ⌨️ HỌC VIỆN GO 10 NGÓN SAO VIỆT
           </h2>
         </div>
         <button
@@ -208,231 +271,305 @@ export default function TypingPractice({ player, onCompleteTyping, onBackToQuest
             sound.playClick();
             onBackToQuests();
           }}
-          className="px-4 py-2 bg-white/50 text-xs font-black rounded-xl text-indigo-950 border border-white/35 hover:bg-white/80 cursor-pointer"
+          className="px-4 py-2 bg-white/60 hover:bg-white text-xs font-black rounded-xl text-indigo-950 border border-indigo-100 hover:border-indigo-305 cursor-pointer shadow-xs"
         >
-          Quay lại Nhiệm Vụ
+          Quay lại Bản đồ Thám hiểm
         </button>
       </div>
 
-      <AnimatePresence mode="wait">
-        {!showResultCard ? (
-          <motion.div
-            key="practice-stage"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            className="bg-white/55 backdrop-blur-md rounded-3xl p-6 border border-white/50 shadow-md space-y-6"
-            id="arena-stage"
-          >
-            {/* Progress indicator */}
-            <div className="flex justify-between items-center text-xs font-bold text-slate-500">
-              <span>Độ tiến trình: {currentIndex + 1} / {phrasesToUse.length} cụm từ</span>
-              <span className="text-indigo-600 font-black">Thưởng tích lũy: 🪙 +{goldEarned} Vàng | ⚡ +{expEarned} EXP</span>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* SIDEBAR LESSON SELECTION (Dũng sĩ chinh phục từ từ) */}
+        <div className="lg:col-span-4 space-y-3" id="typing-lessons-sidebar">
+          <div className="p-4 bg-indigo-950 text-white rounded-2xl flex items-center justify-between shadow-sm">
+            <h3 className="text-xs font-black tracking-wider uppercase flex items-center gap-2">
+              <Keyboard className="w-4 h-4 text-amber-400" />
+              Chương Trình Luyện Ngón
+            </h3>
+            <span className="text-[11px] font-mono bg-white/20 px-2 py-0.5 rounded-md text-amber-300 font-bold">
+              Đã mở: {unlockedLevel}/6
+            </span>
+          </div>
 
-            <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden shadow-inner">
-              <div 
-                className="h-full bg-indigo-600 rounded-full transition-all duration-300"
-                style={{ width: `${((currentIndex + 1) / phrasesToUse.length) * 100}%` }}
-              />
-            </div>
+          <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
+            {TYPING_LESSONS.map((lesson) => {
+              const isLocked = lesson.id > unlockedLevel;
+              const isActive = lesson.id === selectedLessonId;
+              const isFinishedByMe = lesson.id < unlockedLevel;
 
-            {/* PHRASE DISPLAY AREA */}
-            <div className="bg-slate-950 rounded-2xl p-8 relative overflow-hidden flex flex-col items-center justify-center min-h-[180px] shadow-inner text-center">
-              <div className="absolute top-3 left-3 px-2 py-0.5 rounded bg-white/10 text-[9px] font-mono font-bold text-white uppercase tracking-wider select-none">
-                Chủ đề: {currentPhrase.category}
-              </div>
+              let difficultyColor = 'text-green-600 bg-green-50';
+              if (lesson.difficulty === 'Trung Bình') difficultyColor = 'text-amber-600 bg-amber-50';
+              else if (lesson.difficulty === 'Khó' || lesson.difficulty === 'Rất Khó') difficultyColor = 'text-orange-600 bg-orange-50';
+              else if (lesson.difficulty === 'Huyền Thoại') difficultyColor = 'text-red-600 bg-red-50';
 
-              {/* Target Phrase with Highlighted Progress */}
-              <div className="font-mono text-xl md:text-3xl text-zinc-500 font-bold tracking-normal mb-3 select-none flex flex-wrap justify-center">
-                {currentPhrase.text.split('').map((char, index) => {
-                  let colorClass = 'text-zinc-500';
-                  let decoClass = '';
-                  if (index < typedText.length) {
-                    colorClass = 'text-emerald-400 font-black'; // đã gõ đúng
-                  } else if (index === typedText.length) {
-                    colorClass = 'text-amber-400 font-black underline decoration-2'; // ký tự kế tiếp cần gõ
-                    decoClass = 'animate-pulse';
-                  }
-                  
-                  // Thay thế khoảng trắng hiển thị để rõ nét hơn
-                  const displayChar = char === ' ' ? '␣' : char;
-                  return (
-                    <span key={index} className={`${colorClass} ${decoClass} mx-0.5 transition duration-100`}>
-                      {displayChar}
-                    </span>
-                  );
-                })}
-              </div>
+              return (
+                <button
+                  key={lesson.id}
+                  onClick={() => handleSelectLesson(lesson.id)}
+                  disabled={isLocked && lesson.id !== 1}
+                  className={`w-full text-left p-3.5 rounded-2xl border transition duration-150 flex items-center justify-between cursor-pointer ${
+                    isActive 
+                      ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-500/10' 
+                      : isLocked
+                        ? 'bg-slate-100/70 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                        : 'bg-white border-slate-100 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="space-y-1 pr-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-black text-slate-900">
+                        {lesson.name}
+                      </span>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${difficultyColor}`}>
+                        {lesson.difficulty}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 line-clamp-1 leading-normal font-sans">
+                      {lesson.desc}
+                    </p>
+                  </div>
 
-              {/* Định nghĩa phím tắt / Mô tả giáo dục */}
-              <p className="text-white/60 text-xs md:text-sm font-sans max-w-lg leading-relaxed select-none">
-                📖 {currentPhrase.desc}
-              </p>
-            </div>
+                  <div className="shrink-0">
+                    {isLocked ? (
+                      <Lock className="w-4 h-4 text-slate-400" />
+                    ) : isFinishedByMe ? (
+                      <CheckCircle className="w-5 h-5 text-emerald-500 fill-emerald-50" />
+                    ) : (
+                      <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-indigo-600 animate-ping' : 'bg-slate-350'}`} />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
 
-            {/* 10-FINGER TYPING VISUAL GUIDE */}
-            {activeGuide && (
-              <div className="bg-slate-50 border border-slate-200 rounded-3xl p-5 md:p-6 space-y-4 shadow-sm" id="finger-guide-panel">
-                <div className="flex flex-col md:flex-row justify-between items-center gap-2 border-b border-slate-150 pb-3">
-                  <h4 className="text-xs font-black text-indigo-950 uppercase flex items-center gap-1.5">
-                    👐 BÀN TAY HƯỚNG DẪN 10 NGÓN TAY
-                  </h4>
-                  <p className="text-[11px] font-sans font-bold text-slate-500 bg-indigo-50/75 border border-indigo-100/50 px-3 py-1 rounded-full">
-                    Gợi ý: Hãy dùng <span className="text-indigo-600 font-extrabold">{activeGuide.fingerName}</span> để gõ ký tự <span className="font-mono bg-white border border-slate-300 font-extrabold px-1.5 py-0.5 rounded text-amber-600 text-xs">'{nextChar === ' ' ? 'Cách' : nextChar}'</span>
+          <div className="p-3 bg-amber-50/50 border border-amber-100 rounded-2xl text-[11px] text-amber-900 leading-normal font-sans">
+            💡 <strong>Mẹo luyện gõ:</strong> Trẻ mầm non, học sinh lớp 1 mới bắt đầu gõ nên chỉ gõ <strong>Bài 1</strong> hàng giữa cơ bản. Khi đôi bàn tay đã quen phím, hệ thống sẽ mở khóa bài tập tiếp theo để em rèn luyện khó dần lên!
+          </div>
+        </div>
+
+        {/* WORKSPACE & GRAPHICS */}
+        <div className="lg:col-span-8">
+          <AnimatePresence mode="wait">
+            {!showResultCard ? (
+              <motion.div
+                key={`${selectedLessonId}-${currentIndex}`}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                className="bg-white rounded-3xl p-5 md:p-6 border border-slate-100 shadow-xs space-y-6"
+                id="arena-stage"
+              >
+                {/* Progress bar */}
+                <div className="flex justify-between items-center text-xs font-bold text-slate-500 flex-wrap gap-2">
+                  <span>Tiến trình Bài tập: {currentIndex + 1} / {phrasesToUse.length} cụm phím</span>
+                  <span className="text-indigo-600 font-black">Thưởng tích lũy: 🪙 +{goldEarned} Vàng | ⚡ +{expEarned} EXP</span>
+                </div>
+
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden shadow-inner">
+                  <div 
+                    className="h-full bg-indigo-600 rounded-full transition-all duration-300"
+                    style={{ width: `${((currentIndex + 1) / phrasesToUse.length) * 100}%` }}
+                  />
+                </div>
+
+                {/* TEXT SCREEN DISPLAY */}
+                <div className="bg-slate-950 rounded-2xl p-7 relative overflow-hidden flex flex-col items-center justify-center min-h-[160px] shadow-inner text-center">
+                  <div className="absolute top-3 left-3 px-2 py-0.5 rounded bg-white/10 text-[9px] font-mono font-bold text-white uppercase tracking-wider select-none">
+                    Khối mộc: {currentPhrase.category}
+                  </div>
+
+                  <div className="font-mono text-xl md:text-3xl text-zinc-500 font-bold tracking-normal mb-3 select-none flex flex-wrap justify-center">
+                    {currentPhrase.text.split('').map((char, index) => {
+                      let colorClass = 'text-zinc-500';
+                      let decoClass = '';
+                      if (index < typedText.length) {
+                        colorClass = 'text-emerald-400 font-black';
+                      } else if (index === typedText.length) {
+                        colorClass = 'text-amber-400 font-black underline decoration-2';
+                        decoClass = 'animate-pulse';
+                      }
+                      
+                      const displayChar = char === ' ' ? '␣' : char;
+                      return (
+                        <span key={index} className={`${colorClass} ${decoClass} mx-0.5 transition duration-100`}>
+                          {displayChar}
+                        </span>
+                      );
+                    })}
+                  </div>
+
+                  <p className="text-white/60 text-xs md:text-sm font-sans max-w-lg leading-relaxed select-none">
+                    📖 {currentPhrase.desc}
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                  {/* LEFT HAND CARD */}
-                  <div className={`flex flex-col items-center p-4 rounded-2xl border transition-all duration-300 ${activeGuide.hand === 'left' ? 'bg-amber-50/60 border-amber-200 ring-2 ring-amber-100/50' : 'bg-white/40 border-slate-200'}`}>
-                    <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full mb-6 tracking-wider uppercase ${activeGuide.hand === 'left' ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
-                      Bàn tay Trái {activeGuide.hand === 'left' && '👈'}
-                    </span>
-                    {/* Visual model Left hand */}
-                    <div className="relative w-48 h-32 flex items-end justify-center select-none">
-                      {/* Palm background */}
-                      <div className={`absolute bottom-0 w-32 h-14 rounded-t-3xl border-t transition-all duration-300 ${activeGuide.hand === 'left' ? 'bg-amber-200/80 border-amber-300' : 'bg-slate-200 border-slate-300'}`} />
-                      
-                      {/* Pinky Left */}
-                      <div className={`absolute left-4 bottom-12 w-5 rounded-full transition-all duration-300 flex flex-col items-center justify-end pb-1 shadow-inner ${activeGuide.hand === 'left' && activeGuide.finger === 'pinky' ? 'bg-gradient-to-t from-amber-400 to-amber-500 h-18 ring-4 ring-amber-100 text-white font-extrabold' : 'bg-slate-300 text-slate-700 h-12'}`}>
-                        <span className="text-[8px] font-sans font-bold leading-none">ÚT</span>
+                {/* ACTIVE GUIDE - HAND ANIMATION */}
+                {activeGuide && (
+                  <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 md:p-5 space-y-4" id="finger-guide-panel">
+                    <div className="flex justify-between items-center gap-2 border-b border-slate-200 pb-2.5">
+                      <h4 className="text-xs font-black text-indigo-950 uppercase flex items-center gap-1.5">
+                        👐 HƯỚNG DẪN ĐẶT NGÓN TAY
+                      </h4>
+                      <p className="text-[11px] font-sans font-bold text-slate-500 bg-indigo-50/70 border border-indigo-100/40 px-2.5 py-0.5 rounded-full">
+                        Phím kế tế: Dùng <span className="text-indigo-650 font-extrabold text-indigo-600">{activeGuide.fingerName}</span> gõ phím <span className="font-mono bg-white border border-slate-350 font-extrabold px-1.5 py-0.5 rounded text-amber-600 text-xs">'{nextChar === ' ' ? 'Phím Cách' : nextChar}'</span>
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* LEFT CARD */}
+                      <div className={`flex flex-col items-center p-3 rounded-xl border transition-all duration-150 ${activeGuide.hand === 'left' ? 'bg-amber-50/40 border-amber-200 shadow-xs' : 'bg-white/50 border-slate-150'}`}>
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full mb-4 ${activeGuide.hand === 'left' ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-500'}`}>
+                          Bàn tay Trái {activeGuide.hand === 'left' && '👈'}
+                        </span>
+                        
+                        <div className="relative w-44 h-24 flex items-end justify-center select-none">
+                          <div className={`absolute bottom-0 w-28 h-10 rounded-t-2xl border-t transition-all duration-150 ${activeGuide.hand === 'left' ? 'bg-amber-200 border-amber-350' : 'bg-slate-200 border-slate-300'}`} />
+                          
+                          <div className={`absolute left-3 bottom-8 w-4 rounded-full transition-all duration-150 flex flex-col items-center justify-end pb-1 ${activeGuide.hand === 'left' && activeGuide.finger === 'pinky' ? 'bg-amber-450 bg-amber-500 h-14 ring-2 ring-amber-200 text-white font-extrabold' : 'bg-slate-300 h-9 text-slate-500'}`}>
+                            <span className="text-[7px] font-bold">ÚT</span>
+                          </div>
+                          <div className={`absolute left-8 bottom-8 w-4 rounded-full transition-all duration-150 flex flex-col items-center justify-end pb-1 ${activeGuide.hand === 'left' && activeGuide.finger === 'ring' ? 'bg-amber-450 bg-amber-500 h-16 ring-2 ring-amber-200 text-white font-extrabold' : 'bg-slate-300 h-11 text-slate-500'}`}>
+                            <span className="text-[7px] font-bold">ÁP</span>
+                          </div>
+                          <div className={`absolute left-13 bottom-8 w-4 rounded-full transition-all duration-150 flex flex-col items-center justify-end pb-1 ${activeGuide.hand === 'left' && activeGuide.finger === 'middle' ? 'bg-amber-450 bg-amber-500 h-18 ring-2 ring-amber-200 text-white font-extrabold' : 'bg-slate-300 h-13 text-slate-500'}`}>
+                            <span className="text-[7px] font-bold">GIỮA</span>
+                          </div>
+                          <div className={`absolute left-18 bottom-8 w-4 rounded-full transition-all duration-150 flex flex-col items-center justify-end pb-1 ${activeGuide.hand === 'left' && activeGuide.finger === 'index' ? 'bg-amber-450 bg-amber-500 h-16 ring-2 ring-amber-200 text-white font-extrabold' : 'bg-slate-300 h-12 text-slate-500'}`}>
+                            <span className="text-[7px] font-bold">TRỎ</span>
+                          </div>
+                          <div className={`absolute left-23 bottom-4 w-4 rounded-full transition-all duration-150 flex flex-col items-center justify-end pb-1 origin-bottom-left -rotate-[30deg] ${activeGuide.hand === 'left' && activeGuide.finger === 'thumb' ? 'bg-amber-450 bg-amber-500 h-11 ring-2 ring-amber-200 text-white font-extrabold' : 'bg-slate-300 h-7 text-slate-500'}`}>
+                            <span className="text-[7px] font-bold">CÁI</span>
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Ring Left */}
-                      <div className={`absolute left-10 bottom-12 w-5 rounded-full transition-all duration-300 flex flex-col items-center justify-end pb-1 shadow-inner ${activeGuide.hand === 'left' && activeGuide.finger === 'ring' ? 'bg-gradient-to-t from-amber-400 to-amber-500 h-22 ring-4 ring-amber-100 text-white font-extrabold' : 'bg-slate-300 text-slate-700 h-16'}`}>
-                        <span className="text-[8px] font-sans font-bold leading-none">ÁP</span>
-                      </div>
-
-                      {/* Middle Left */}
-                      <div className={`absolute left-16 bottom-12 w-5 rounded-full transition-all duration-300 flex flex-col items-center justify-end pb-1 shadow-inner ${activeGuide.hand === 'left' && activeGuide.finger === 'middle' ? 'bg-gradient-to-t from-amber-400 to-amber-500 h-24 ring-4 ring-amber-100 text-white font-extrabold' : 'bg-slate-300 text-slate-700 h-18'}`}>
-                        <span className="text-[8px] font-sans font-bold leading-none">GIỮA</span>
-                      </div>
-
-                      {/* Index Left */}
-                      <div className={`absolute left-22 bottom-12 w-5 rounded-full transition-all duration-300 flex flex-col items-center justify-end pb-1 shadow-inner ${activeGuide.hand === 'left' && activeGuide.finger === 'index' ? 'bg-gradient-to-t from-amber-400 to-amber-500 h-22 ring-4 ring-amber-100 text-white font-extrabold' : 'bg-slate-300 text-slate-700 h-16'}`}>
-                        <span className="text-[8px] font-sans font-bold leading-none">TRỎ</span>
-                      </div>
-
-                      {/* Thumb Left */}
-                      <div className={`absolute left-28 bottom-7 w-5 rounded-full transition-all duration-300 flex flex-col items-center justify-end pb-1 shadow-inner origin-bottom-left -rotate-[30deg] ${activeGuide.hand === 'left' && activeGuide.finger === 'thumb' ? 'bg-gradient-to-t from-amber-400 to-amber-500 h-14 ring-4 ring-amber-100 text-white font-extrabold' : 'bg-slate-300 text-slate-700 h-10'}`}>
-                        <span className="text-[8px] font-sans font-bold leading-none">CÁI</span>
+                      {/* RIGHT CARD */}
+                      <div className={`flex flex-col items-center p-3 rounded-xl border transition-all duration-150 ${activeGuide.hand === 'right' ? 'bg-amber-50/40 border-amber-200 shadow-xs' : 'bg-white/50 border-slate-150'}`}>
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full mb-4 ${activeGuide.hand === 'right' ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-500'}`}>
+                          Bàn tay Phải {activeGuide.hand === 'right' && '👉'}
+                        </span>
+                        
+                        <div className="relative w-44 h-24 flex items-end justify-center select-none">
+                          <div className={`absolute bottom-0 w-28 h-10 rounded-t-2xl border-t transition-all duration-150 ${activeGuide.hand === 'right' ? 'bg-amber-200 border-amber-350' : 'bg-slate-200 border-slate-300'}`} />
+                          
+                          <div className={`absolute right-23 bottom-4 w-4 rounded-full transition-all duration-150 flex flex-col items-center justify-end pb-1 origin-bottom-right rotate-[30deg] ${activeGuide.hand === 'right' && activeGuide.finger === 'thumb' ? 'bg-amber-450 bg-amber-500 h-11 ring-2 ring-amber-200 text-white font-extrabold' : 'bg-slate-300 h-7 text-slate-500'}`}>
+                            <span className="text-[7px] font-bold">CÁI</span>
+                          </div>
+                          <div className={`absolute right-18 bottom-8 w-4 rounded-full transition-all duration-150 flex flex-col items-center justify-end pb-1 ${activeGuide.hand === 'right' && activeGuide.finger === 'index' ? 'bg-amber-450 bg-amber-500 h-16 ring-2 ring-amber-200 text-white font-extrabold' : 'bg-slate-300 h-12 text-slate-500'}`}>
+                            <span className="text-[7px] font-bold">TRỎ</span>
+                          </div>
+                          <div className={`absolute right-13 bottom-8 w-4 rounded-full transition-all duration-150 flex flex-col items-center justify-end pb-1 ${activeGuide.hand === 'right' && activeGuide.finger === 'middle' ? 'bg-amber-450 bg-amber-500 h-18 ring-2 ring-amber-200 text-white font-extrabold' : 'bg-slate-300 h-13 text-slate-500'}`}>
+                            <span className="text-[7px] font-bold">GIỮA</span>
+                          </div>
+                          <div className={`absolute right-8 bottom-8 w-4 rounded-full transition-all duration-150 flex flex-col items-center justify-end pb-1 ${activeGuide.hand === 'right' && activeGuide.finger === 'ring' ? 'bg-amber-450 bg-amber-500 h-16 ring-2 ring-amber-200 text-white font-extrabold' : 'bg-slate-300 h-11 text-slate-500'}`}>
+                            <span className="text-[7px] font-bold">ÁP</span>
+                          </div>
+                          <div className={`absolute right-3 bottom-8 w-4 rounded-full transition-all duration-150 flex flex-col items-center justify-end pb-1 ${activeGuide.hand === 'right' && activeGuide.finger === 'pinky' ? 'bg-amber-450 bg-amber-500 h-14 ring-2 ring-amber-200 text-white font-extrabold' : 'bg-slate-300 h-9 text-slate-500'}`}>
+                            <span className="text-[7px] font-bold">ÚT</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
+                )}
 
-                  {/* RIGHT HAND CARD */}
-                  <div className={`flex flex-col items-center p-4 rounded-2xl border transition-all duration-300 ${activeGuide.hand === 'right' ? 'bg-amber-50/60 border-amber-200 ring-2 ring-amber-100/50' : 'bg-white/40 border-slate-200'}`}>
-                    <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full mb-6 tracking-wider uppercase ${activeGuide.hand === 'right' ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
-                      Bàn tay Phải {activeGuide.hand === 'right' && '👉'}
+                {/* TEXT INPUT FIELD */}
+                <div className="space-y-3">
+                  <div className="relative">
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={typedText}
+                      onChange={handleInputChange}
+                      disabled={isFinished}
+                      placeholder="Bấm đặt tay cơ sở và gõ đáp án tại đây..."
+                      className="w-full text-center px-4 py-3.5 bg-indigo-50/10 border-2 border-indigo-150 focus:border-indigo-500 rounded-2xl font-mono text-lg font-bold text-indigo-950 focus:ring-4 focus:ring-indigo-100 outline-none transition duration-150 shadow-inner"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-2xl filter saturate-75 opacity-45 select-none hidden md:inline">
+                      ⌨️
                     </span>
-                    {/* Visual model Right hand */}
-                    <div className="relative w-48 h-32 flex items-end justify-center select-none">
-                      {/* Palm background */}
-                      <div className={`absolute bottom-0 w-32 h-14 rounded-t-3xl border-t transition-all duration-300 ${activeGuide.hand === 'right' ? 'bg-amber-200/80 border-amber-300' : 'bg-slate-200 border-slate-300'}`} />
-                      
-                      {/* Thumb Right */}
-                      <div className={`absolute right-28 bottom-7 w-5 rounded-full transition-all duration-300 flex flex-col items-center justify-end pb-1 shadow-inner origin-bottom-right rotate-[30deg] ${activeGuide.hand === 'right' && activeGuide.finger === 'thumb' ? 'bg-gradient-to-t from-amber-400 to-amber-500 h-14 ring-4 ring-amber-100 text-white font-extrabold' : 'bg-slate-300 text-slate-700 h-10'}`}>
-                        <span className="text-[8px] font-sans font-bold leading-none">CÁI</span>
-                      </div>
+                  </div>
 
-                      {/* Index Right */}
-                      <div className={`absolute right-22 bottom-12 w-5 rounded-full transition-all duration-300 flex flex-col items-center justify-end pb-1 shadow-inner ${activeGuide.hand === 'right' && activeGuide.finger === 'index' ? 'bg-gradient-to-t from-amber-400 to-amber-500 h-22 ring-4 ring-amber-100 text-white font-extrabold' : 'bg-slate-300 text-slate-700 h-16'}`}>
-                        <span className="text-[8px] font-sans font-bold leading-none">TRỎ</span>
-                      </div>
-
-                      {/* Middle Right */}
-                      <div className={`absolute right-16 bottom-12 w-5 rounded-full transition-all duration-300 flex flex-col items-center justify-end pb-1 shadow-inner ${activeGuide.hand === 'right' && activeGuide.finger === 'middle' ? 'bg-gradient-to-t from-amber-400 to-amber-500 h-24 ring-4 ring-amber-100 text-white font-extrabold' : 'bg-slate-300 text-slate-700 h-18'}`}>
-                        <span className="text-[8px] font-sans font-bold leading-none">GIỮA</span>
-                      </div>
-
-                      {/* Ring Right */}
-                      <div className={`absolute right-10 bottom-12 w-5 rounded-full transition-all duration-300 flex flex-col items-center justify-end pb-1 shadow-inner ${activeGuide.hand === 'right' && activeGuide.finger === 'ring' ? 'bg-gradient-to-t from-amber-400 to-amber-500 h-22 ring-4 ring-amber-100 text-white font-extrabold' : 'bg-slate-300 text-slate-700 h-16'}`}>
-                        <span className="text-[8px] font-sans font-bold leading-none">ÁP</span>
-                      </div>
-
-                      {/* Pinky Right */}
-                      <div className={`absolute right-4 bottom-12 w-5 rounded-full transition-all duration-300 flex flex-col items-center justify-end pb-1 shadow-inner ${activeGuide.hand === 'right' && activeGuide.finger === 'pinky' ? 'bg-gradient-to-t from-amber-400 to-amber-500 h-18 ring-4 ring-amber-100 text-white font-extrabold' : 'bg-slate-300 text-slate-700 h-12'}`}>
-                        <span className="text-[8px] font-sans font-bold leading-none">ÚT</span>
-                      </div>
+                  <div className="flex flex-col md:flex-row justify-between items-center gap-3 text-xs font-sans text-slate-500 font-bold bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-1.5">
+                      <Volume2 className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Sử dụng phím Shift cho ký tự IN HOA nếu cần!</span>
+                    </div>
+                    <div className="flex gap-4">
+                      <span>Cột gõ: {totalKeystrokes}</span>
+                      <span className="text-indigo-700">Độ chính xác: {accuracy}%</span>
                     </div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
+            ) : (
+              /* LESSON REWARD OR FINAL SCREEN */
+              <motion.div
+                key="result-stage"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white border border-slate-100 rounded-3xl p-6 md:p-8 text-center shadow-lg space-y-6"
+                id="typing-result-card"
+              >
+                <div className="relative inline-block">
+                  <span className="text-7xl">🏆</span>
+                  <Sparkles className="w-6 h-6 text-amber-500 absolute -top-1 -right-1 animate-bounce" />
+                </div>
+                <h3 className="text-2xl font-black text-indigo-950 uppercase">
+                  Bài tập Hoàn Thành Mỹ Mãn!
+                </h3>
+                <p className="text-xs text-slate-500 font-sans font-bold px-4 leading-relaxed">
+                  Em đã hoàn thành tốt khóa mục <strong>{activeLesson.name}</strong>, gặt hái được vàng và EXP thăng tiến sức mạnh thám hiểm.
+                </p>
+
+                <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-150 shadow-inner font-mono text-sm max-w-sm mx-auto">
+                  <div className="flex flex-col items-center">
+                    <span className="text-2xl">🪙</span>
+                    <span className="text-[9px] text-slate-500 font-black mt-1 uppercase">Vàng Tích Lũy</span>
+                    <span className="font-mono font-black text-amber-800 text-lg">+{goldEarned}</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-2xl">⚡</span>
+                    <span className="text-[9px] text-slate-500 font-black mt-1 uppercase">EXP Học tập</span>
+                    <span className="font-mono font-black text-indigo-700 text-lg">+{expEarned}</span>
+                  </div>
+                  <div className="col-span-2 border-t border-slate-200 pt-2.5 mt-2 flex justify-between px-3 text-xs font-bold text-slate-500 font-sans">
+                    <span>Gõ hợp lệ: {correctKeystrokes} phím</span>
+                    <span>Chính xác: {accuracy}%</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 max-w-sm mx-auto">
+                  <button
+                    onClick={() => {
+                      const nextLvlId = selectedLessonId + 1;
+                      if (nextLvlId <= unlockedLevel) {
+                        handleSelectLesson(nextLvlId);
+                      } else {
+                        // claim and back to map
+                        finishAndClaim();
+                      }
+                    }}
+                    className="flex-1 py-3 bg-indigo-650 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl cursor-pointer text-xs uppercase tracking-wider"
+                  >
+                    {selectedLessonId < unlockedLevel ? 'Bài học Tiếp Theo ➔' : 'Nhận Quà & Hoàn Thành 🎉'}
+                  </button>
+                  {selectedLessonId === unlockedLevel && (
+                    <button
+                      onClick={finishAndClaim}
+                      className="py-3 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl cursor-pointer text-xs uppercase"
+                    >
+                      Bản đồ chính
+                    </button>
+                  )}
+                </div>
+              </motion.div>
             )}
+          </AnimatePresence>
+        </div>
 
-            {/* INPUT BOX */}
-            <div className="space-y-4">
-              <div className="relative">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={typedText}
-                  onChange={handleInputChange}
-                  disabled={isFinished}
-                  placeholder="Bắt đầu gõ lại dòng chữ phía trên tại đây..."
-                  className="w-full text-center px-4 py-4 bg-white/70 border-2 border-indigo-250 border-indigo-200 focus:border-indigo-505 rounded-2xl font-mono text-lg md:text-xl font-bold text-indigo-950 focus:ring-4 focus:ring-indigo-100 outline-none transition duration-150 shadow-inner"
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-2xl filter saturate-75 opacity-40 select-none hidden md:inline">
-                  ⌨️
-                </span>
-              </div>
-
-              <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-sans text-slate-500 font-bold bg-white/40 p-4 rounded-xl border border-white/50">
-                <div className="flex items-center gap-2">
-                  <Volume2 className="w-4 h-4 text-slate-500" />
-                  <span>Mẹo: Hãy kích hoạt âm thanh loa để nghe nhịp gõ phím chân thật!</span>
-                </div>
-                <div className="flex gap-4">
-                  <span>Tổng lực gõ: {totalKeystrokes}</span>
-                  <span className="text-indigo-700">Độ chính xác: {accuracy}%</span>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        ) : (
-          /* RESULT END SCREEN */
-          <motion.div
-            key="result-stage"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="max-w-md mx-auto bg-white border border-white rounded-3xl p-6 md:p-8 text-center shadow-2xl space-y-6"
-            id="typing-result-card"
-          >
-            <span className="text-7xl filter drop-shadow">🏆</span>
-            <h3 className="text-2xl font-black text-indigo-950 uppercase">
-              TỐC THỦ BÀN PHÍM XUẤT SẮC!
-            </h3>
-            <p className="text-xs text-slate-650 font-sans font-bold px-4">
-              Em đã hoàn thành tốt khoa mục rèn luyện gõ bàn phím và phản xạ phím tắt tại Sao Việt, gặt hái được các quà tặng sau:
-            </p>
-
-            <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-inner font-mono text-sm">
-              <div className="flex flex-col items-center">
-                <span className="text-2xl">🪙</span>
-                <span className="text-[10px] text-slate-500 font-black mt-1">VÀNG TÍCH LŨY</span>
-                <span className="font-mono font-black text-amber-850 text-lg">+{goldEarned}</span>
-              </div>
-              <div className="flex flex-col flex-wrap items-center">
-                <span className="text-2xl">⚡</span>
-                <span className="text-[10px] text-slate-500 font-black mt-1">EXP HỌC TẬP</span>
-                <span className="font-mono font-black text-indigo-700 text-lg">+{expEarned}</span>
-              </div>
-              <div className="col-span-2 border-t border-slate-200 pt-2 mt-2 flex justify-between px-4 text-xs font-bold text-slate-500 font-sans">
-                <span>Lực gõ hoàn hảo: {correctKeystrokes}</span>
-                <span>Tỉ lệ chính xác: {accuracy}%</span>
-              </div>
-            </div>
-
-            <button
-              onClick={finishAndClaim}
-              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black tracking-widest uppercase rounded-xl border border-indigo-500 shadow-md transition cursor-pointer text-xs"
-            >
-              🎉 Nhận Quà & Hoàn Tất Nhiệm Vụ 🎉
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      </div>
     </div>
   );
 }

@@ -8,6 +8,8 @@ import { Archetype, Player } from '../types';
 import { sound } from './SoundManager';
 import { motion, AnimatePresence } from 'motion/react';
 import { Phone, Lock, User, GraduationCap, Award, Check, UserPlus, LogIn, Sparkles, BookOpen, ChevronRight } from 'lucide-react';
+import { collection, doc, getDocs, getDoc, setDoc } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 
 interface CharacterCreateProps {
   onCreated: (player: Player) => void;
@@ -188,18 +190,41 @@ export default function CharacterCreate({ onCreated }: CharacterCreateProps) {
   const [accounts, setAccounts] = useState<Player[]>([]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('stv_registered_accounts');
-    if (saved) {
+    const loadFirebaseAccounts = async () => {
       try {
-        setAccounts(JSON.parse(saved));
-      } catch (e) {
-        setAccounts(SEED_ACCOUNTS);
-        localStorage.setItem('stv_registered_accounts', JSON.stringify(SEED_ACCOUNTS));
+        const querySnapshot = await getDocs(collection(db, 'players'));
+        const list: Player[] = [];
+        querySnapshot.forEach((docSnap) => {
+          list.push(docSnap.data() as Player);
+        });
+
+        if (list.length > 0) {
+          setAccounts(list);
+          localStorage.setItem('stv_registered_accounts', JSON.stringify(list));
+        } else {
+          // If Firestore is completely fresh, write the SEED_ACCOUNTS into Firestore
+          for (const acc of SEED_ACCOUNTS) {
+            await setDoc(doc(db, 'players', acc.id), acc);
+          }
+          setAccounts(SEED_ACCOUNTS);
+          localStorage.setItem('stv_registered_accounts', JSON.stringify(SEED_ACCOUNTS));
+        }
+      } catch (err) {
+        console.error('Error loading firebase players:', err);
+        // Fallback to local storage if offline or not fully configured
+        const saved = localStorage.getItem('stv_registered_accounts');
+        if (saved) {
+          try {
+            setAccounts(JSON.parse(saved));
+          } catch (e) {
+            setAccounts(SEED_ACCOUNTS);
+          }
+        } else {
+          setAccounts(SEED_ACCOUNTS);
+        }
       }
-    } else {
-      setAccounts(SEED_ACCOUNTS);
-      localStorage.setItem('stv_registered_accounts', JSON.stringify(SEED_ACCOUNTS));
-    }
+    };
+    loadFirebaseAccounts();
   }, []);
 
   // Tự động gợi ý mật khẩu đúng định dạng Da + số điện thoại cho học học sinh dễ đăng kí
@@ -214,7 +239,7 @@ export default function CharacterCreate({ onCreated }: CharacterCreateProps) {
   }, [regPhone]);
 
   // Đăng ký tài khoản
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Chuẩn hóa Số điện thoại: Phải đủ 10 chữ số
@@ -236,112 +261,121 @@ export default function CharacterCreate({ onCreated }: CharacterCreateProps) {
       return;
     }
 
-    // Kiểm tra xem số điện thoại này đã được đăng ký chưa
-    if (accounts.some(acc => acc.phoneNumber === processedPhone)) {
-      alert('⚠️ Số điện thoại này đã được đăng ký trên hệ thống Tin Học Sao Việt! Vui lòng chuyển sang tab Đăng Nhập.');
-      return;
-    }
-
-    sound.playLevelUp();
-
-    const classInfo = CLASS_DETAILS[regArchetype];
-    const newPlayer: Player = {
-      id: 'p_' + processedPhone,
-      name: regName.trim(),
-      grade: regGrade,
-      archetype: regArchetype,
-      level: 1,
-      exp: 0,
-      expToNextLevel: 100,
-      hp: 100,
-      maxHp: 100,
-      gold: 500, // Tặng một ít vàng ban đầu để mua trang bị
-      gem: 10,   // Tặng một ít kim cương
-      title: 'Tân Binh Thám Hiểm',
-      consecutiveDays: 0,
-      totalDays: 0,
-      lastCheckInDate: null,
-      checkedInToday: false,
-      checkInHistory: [],
-      stats: { ...classInfo.stats },
-      inventory: [],
-      equipped: {
-        weapon: null,
-        armor: null,
-        shield: null,
-        ring: null
-      },
-      pet: null,
-      petLevel: 1,
-      petExp: 0,
-      unlockedRegions: ['region_1'],
-      completedStages: { region_1: 0 },
-      achievements: [],
-      unlockedTitles: ['Tân Binh Thám Hiểm'],
-      mailRead: [],
-      mailClaimed: [],
-      guildId: null,
-      phoneNumber: processedPhone,
-      password: regPassword,
-      classCode: regClassCode,
-      studyScheduleDays: regDays,
-      studyScheduleShift: regShift,
-      attendanceCount: 0
-    };
-
-    // Lưu vào danh sách các tài khoản đã đăng ký trên hệ thống
-    const updatedAccounts = [...accounts, newPlayer];
-    setAccounts(updatedAccounts);
-    localStorage.setItem('stv_registered_accounts', JSON.stringify(updatedAccounts));
-    
-    // Đồng thời cập nhật danh sách học viên quản lý của thầy cô ở Teacher Dashboard
-    const savedTeacherDb = localStorage.getItem('stv_teacher_students_db');
-    if (savedTeacherDb) {
-      try {
-        const parsedList = JSON.parse(savedTeacherDb);
-        // Tránh trùng lặp id
-        if (!parsedList.some((s: any) => s.id === newPlayer.id)) {
-          parsedList.push({
-            id: newPlayer.id,
-            name: newPlayer.name,
-            grade: newPlayer.grade,
-            archetype: newPlayer.archetype,
-            level: newPlayer.level,
-            exp: newPlayer.exp,
-            gold: newPlayer.gold,
-            gem: newPlayer.gem,
-            totalDays: newPlayer.totalDays,
-            completedQuestsCount: 0,
-            phoneNumber: newPlayer.phoneNumber,
-            classCode: newPlayer.classCode,
-            studyScheduleDays: newPlayer.studyScheduleDays,
-            studyScheduleShift: newPlayer.studyScheduleShift,
-            attendanceCount: newPlayer.attendanceCount
-          });
-          localStorage.setItem('stv_teacher_students_db', JSON.stringify(parsedList));
-        }
-      } catch (e) {
-        console.error(e);
+    try {
+      // Kiểm tra xem số điện thoại này đã được đăng ký chưa bằng cách hỏi Firestore
+      const playerDocRef = doc(db, 'players', 'p_' + processedPhone);
+      const snap = await getDoc(playerDocRef);
+      if (snap.exists()) {
+        alert('⚠️ Số điện thoại này đã được đăng ký trên hệ thống Tin Học Sao Việt! Vui lòng chuyển sang tab Đăng Nhập.');
+        return;
       }
-    }
 
-    // Thông báo đăng ký thành công và chuyển qua màn hình Đăng nhập để học sinh tiến hành đăng nhập thủ công
-    alert(`🎉 Chúc mừng ${newPlayer.name} đăng ký tài khoản thành công!\nHãy sử dụng số điện thoại (${newPlayer.phoneNumber}) và mật khẩu vừa đăng ký để tiến hành đăng nhập vào hệ thống RPG nhé!`);
-    
-    // Lưu số điện thoại đăng ký kéo sang biểu mẫu Đăng nhập, mật khẩu để trống để học sinh tự điền
-    setLoginPhone(newPlayer.phoneNumber || '');
-    setLoginPassword('');
-    
-    // Chuyển Tab sang 'login'
-    setActiveTab('login');
-    
-    // Xóa trắng trường đăng ký
-    setRegPhone('');
-    setRegName('');
+      sound.playLevelUp();
+
+      const classInfo = CLASS_DETAILS[regArchetype];
+      const newPlayer: Player = {
+        id: 'p_' + processedPhone,
+        name: regName.trim(),
+        grade: regGrade,
+        archetype: regArchetype,
+        level: 1,
+        exp: 0,
+        expToNextLevel: 100,
+        hp: 100,
+        maxHp: 100,
+        gold: 500, // Tặng một ít vàng ban đầu để mua trang bị
+        gem: 10,   // Tặng một ít kim cương
+        title: 'Tân Binh Thám Hiểm',
+        consecutiveDays: 0,
+        totalDays: 0,
+        lastCheckInDate: null,
+        checkedInToday: false,
+        checkInHistory: [],
+        stats: { ...classInfo.stats },
+        inventory: [],
+        equipped: {
+          weapon: null,
+          armor: null,
+          shield: null,
+          ring: null
+        },
+        pet: null,
+        petLevel: 1,
+        petExp: 0,
+        unlockedRegions: ['region_1'],
+        completedStages: { region_1: 0 },
+        achievements: [],
+        unlockedTitles: ['Tân Binh Thám Hiểm'],
+        mailRead: [],
+        mailClaimed: [],
+        guildId: null,
+        phoneNumber: processedPhone,
+        password: regPassword,
+        classCode: regClassCode,
+        studyScheduleDays: regDays,
+        studyScheduleShift: regShift,
+        attendanceCount: 0
+      };
+
+      // Ghi trực tiếp lên Firestore
+      await setDoc(playerDocRef, newPlayer);
+
+      // Cập nhật danh sách local để hiển thị ngay lập tức
+      const updatedAccounts = [...accounts, newPlayer];
+      setAccounts(updatedAccounts);
+      localStorage.setItem('stv_registered_accounts', JSON.stringify(updatedAccounts));
+      
+      // Đồng thời cập nhật danh sách học viên quản lý của thầy cô ở Teacher Dashboard
+      const savedTeacherDb = localStorage.getItem('stv_teacher_students_db');
+      if (savedTeacherDb) {
+        try {
+          const parsedList = JSON.parse(savedTeacherDb);
+          if (!parsedList.some((s: any) => s.id === newPlayer.id)) {
+            parsedList.push({
+              id: newPlayer.id,
+              name: newPlayer.name,
+              grade: newPlayer.grade,
+              archetype: newPlayer.archetype,
+              level: newPlayer.level,
+              exp: newPlayer.exp,
+              gold: newPlayer.gold,
+              gem: newPlayer.gem,
+              totalDays: newPlayer.totalDays,
+              completedQuestsCount: 0,
+              phoneNumber: newPlayer.phoneNumber,
+              classCode: newPlayer.classCode,
+              studyScheduleDays: newPlayer.studyScheduleDays,
+              studyScheduleShift: newPlayer.studyScheduleShift,
+              attendanceCount: newPlayer.attendanceCount
+            });
+            localStorage.setItem('stv_teacher_students_db', JSON.stringify(parsedList));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      // Thông báo đăng ký thành công và chuyển qua màn hình Đăng nhập để học sinh tiến hành đăng nhập thủ công
+      alert(`🎉 Chúc mừng ${newPlayer.name} đăng ký tài khoản thành công!\nHãy sử dụng số điện thoại (${newPlayer.phoneNumber}) và mật khẩu vừa đăng ký để tiến hành đăng nhập vào hệ thống RPG nhé!`);
+      
+      // Lưu số điện thoại đăng ký kéo sang biểu mẫu Đăng nhập, mật khẩu để trống để học sinh tự điền
+      setLoginPhone(newPlayer.phoneNumber || '');
+      setLoginPassword('');
+      
+      // Chuyển Tab sang 'login'
+      setActiveTab('login');
+      
+      // Xóa trắng trường đăng ký
+      setRegPhone('');
+      setRegName('');
+    } catch (err) {
+      console.error('Registration failed in Firestore: ', err);
+      alert('⚠️ Gặp sự cố kết nối dữ liệu máy chủ đám mây. Vui lòng kiểm tra lại mạng kết nối!');
+    }
   };
 
   // Đăng nhập tài khoản có sẵn
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // 1. Kiểm tra tài khoản Giáo Viên / Admin đặc biệt
@@ -392,22 +426,44 @@ export default function CharacterCreate({ onCreated }: CharacterCreateProps) {
     
     const processedPhone = loginPhone.replace(/\D/g, '');
     
-    // Tìm tài khoản khớp số điện thoại
-    const found = accounts.find(acc => acc.phoneNumber === processedPhone);
-    if (!found) {
-      alert('⚠️ Số điện thoại chưa được đăng ký! Em hãy chọn Tab "Đăng Ký Tài Khoản" để tạo mới nhé.');
-      return;
-    }
+    try {
+      // Tìm tài khoản khớp số điện thoại từ Firestore
+      const playerDocRef = doc(db, 'players', 'p_' + processedPhone);
+      const snap = await getDoc(playerDocRef);
+      if (!snap.exists()) {
+        alert('⚠️ Số điện thoại chưa được đăng ký! Em hãy chọn Tab "Đăng Ký Tài Khoản" để tạo mới nhé.');
+        return;
+      }
 
-    if (found.password !== loginPassword) {
-      alert(`⚠️ Mật khẩu nhập chưa chính xác.\nGợi ý: Mật khẩu bắt buộc là Da + 10 số điện thoại của em (Ví dụ: Da${processedPhone})`);
-      return;
-    }
+      const found = snap.data() as Player;
 
-    sound.playLevelUp();
-    localStorage.setItem('stv_player', JSON.stringify(found));
-    alert(`🎉 Đăng nhập thành công!\nChào mừng học viên ${found.name} trở lại lớp học Tin Học Sao Việt!`);
-    onCreated(found);
+      if (found.password !== loginPassword) {
+        alert(`⚠️ Mật khẩu nhập chưa chính xác.\nGợi ý: Mật khẩu bắt buộc là Da + 10 số điện thoại của em (Ví dụ: Da${processedPhone})`);
+        return;
+      }
+
+      sound.playLevelUp();
+      localStorage.setItem('stv_player', JSON.stringify(found));
+      alert(`🎉 Đăng nhập thành công!\nChào mừng học viên ${found.name} trở lại lớp học Tin Học Sao Việt!`);
+      onCreated(found);
+    } catch (err) {
+      console.error('Login action failed in Firestore:', err);
+      
+      // Fallback local login if cloud fails
+      const found = accounts.find(acc => acc.phoneNumber === processedPhone);
+      if (found) {
+        if (found.password !== loginPassword) {
+          alert(`⚠️ Mật khẩu nhập chưa chính xác.\nGợi ý: Mật khẩu bắt buộc là Da + 10 số điện thoại của em (Ví dụ: Da${processedPhone})`);
+          return;
+        }
+        sound.playLevelUp();
+        localStorage.setItem('stv_player', JSON.stringify(found));
+        alert(`🎉 Đăng nhập thành công (Chế độ offline)!\nChào mừng học viên ${found.name} trở lại lớp học Tin Học Sao Việt!`);
+        onCreated(found);
+      } else {
+        alert('⚠️ Không tìm thấy thông tin tài khoản hoặc mất kết nối mạng!');
+      }
+    }
   };
 
   const handleClassSelect = (type: Archetype) => {
