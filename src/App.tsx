@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { Player, ShopItem, Quest, Mail, Guild } from './types';
 import { sound } from './components/SoundManager';
 import { REGIONS, SHOP_ITEMS, DAILY_QUESTS_TEMPLATE, ACHIEVEMENTS, INITIAL_MAILS, GUILDS } from './data/gameData';
-import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { db } from './lib/firebase';
 
 // Các component con của game RPG
@@ -148,19 +148,36 @@ export default function App() {
 
         // Tải Guilds từ Firestore
         const guildsSnap = await getDocs(collection(db, 'guilds'));
-        const cloudGuilds: Guild[] = [];
+        let cloudGuilds: Guild[] = [];
         guildsSnap.forEach((docSnap) => {
           cloudGuilds.push(docSnap.data() as Guild);
         });
-        if (cloudGuilds.length > 0) {
-          setGuilds(cloudGuilds);
-          localStorage.setItem('stv_guilds', JSON.stringify(cloudGuilds));
-        } else {
-          for (const g of GUILDS) {
-            await setDoc(doc(db, 'guilds', g.id), g);
+
+        // Tự động giải phóng các bang hội thử nghiệm cũ và gieo 12 chi nhánh chính thức
+        const filteredGuilds = cloudGuilds.filter(cg => cg.id !== 'g_dragons' && cg.id !== 'g_lightning' && cg.id !== 'g_knights');
+        if (filteredGuilds.length !== cloudGuilds.length) {
+          const oldIds = ['g_dragons', 'g_lightning', 'g_knights'];
+          for (const oldId of oldIds) {
+            try {
+              await deleteDoc(doc(db, 'guilds', oldId));
+            } catch (err) {
+              console.error('Error removing old guild:', err);
+            }
           }
-          setGuilds(GUILDS);
         }
+
+        let updatedGuilds = [...filteredGuilds];
+        let hasNewSeed = false;
+        for (const g of GUILDS) {
+          if (!updatedGuilds.some((cg) => cg.id === g.id || cg.name === g.name)) {
+            await setDoc(doc(db, 'guilds', g.id), g);
+            updatedGuilds.push(g);
+            hasNewSeed = true;
+          }
+        }
+
+        setGuilds(updatedGuilds);
+        localStorage.setItem('stv_guilds', JSON.stringify(updatedGuilds));
 
         // Tải Lịch sử quà quy đổi của cả hệ thống
         const historySnap = await getDocs(collection(db, 'purchase_history'));
@@ -1107,6 +1124,7 @@ export default function App() {
           {activeTab === 'leaderboard' && (
             <LeaderboardPage
               player={player}
+              guildsList={guilds}
             />
           )}
 
@@ -1153,6 +1171,8 @@ export default function App() {
               guildsList={guilds}
               onJoinGuild={handleJoinGuild}
               onCreateGuild={handleCreateGuild}
+              onUpdateActivePlayer={(updated) => setPlayer(updated)}
+              onUpdateGuildsList={(updated) => setGuilds(updated)}
             />
           )}
 

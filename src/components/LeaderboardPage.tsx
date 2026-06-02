@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { Player } from '../types';
+import { Player, Guild } from '../types';
 import { SAMPLE_LEADERBOARD, GUILDS } from '../data/gameData';
 import { sound } from './SoundManager';
 import { motion, AnimatePresence } from 'motion/react';
@@ -12,6 +12,7 @@ import { Trophy, Medal, Crown, Star, Shield, School } from 'lucide-react';
 
 interface LeaderboardPageProps {
   player: Player;
+  guildsList?: Guild[];
 }
 
 const SAMPLE_CLASSES = [
@@ -21,8 +22,11 @@ const SAMPLE_CLASSES = [
   { rank: 4, name: 'Lớp Tin Học Văn Phòng MOS - Tối Thứ Sáu', members: 10, totalExp: 12100, activeRate: '92%' }
 ];
 
-export default function LeaderboardPage({ player }: LeaderboardPageProps) {
+export default function LeaderboardPage({ player, guildsList }: LeaderboardPageProps) {
   const [activeTab, setActiveTab] = useState<'individual' | 'class' | 'guild'>('individual');
+
+  const displayGuilds = guildsList || GUILDS;
+  const sortedGuilds = [...displayGuilds].sort((a, b) => b.totalExp - a.totalExp);
 
   // Gộp người chơi hiện tại vào danh sách xếp hạng cá nhân
   const getCombinedLeaderboard = () => {
@@ -241,7 +245,7 @@ export default function LeaderboardPage({ player }: LeaderboardPageProps) {
               </div>
 
               <div className="space-y-2">
-                {GUILDS.map((guild, idx) => {
+                {sortedGuilds.map((guild, idx) => {
                   const rank = idx + 1;
                   return (
                     <div

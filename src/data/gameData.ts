@@ -425,17 +425,26 @@ export const INITIAL_MAILS: Mail[] = [
 ];
 
 export const SAMPLE_LEADERBOARD: LeaderboardEntry[] = [
-  { rank: 1, name: 'Nguyễn Minh Quân', archetype: 'warrior', level: 15, exp: 2450, consecutiveDays: 14, guildName: 'Hiệp Sĩ Tri Thức' },
-  { rank: 2, name: 'Lê Quỳnh Chi', archetype: 'mage', level: 14, exp: 2150, consecutiveDays: 12, guildName: 'Đội Rồng Lửa' },
-  { rank: 3, name: 'Vũ Nam Khánh', archetype: 'ninja', level: 13, exp: 1980, consecutiveDays: 10, guildName: 'Sấm Sét' },
-  { rank: 4, name: 'Phạm Minh Trí', archetype: 'stem', level: 13, exp: 1870, consecutiveDays: 11, guildName: 'Hiệp Sĩ Tri Thức' },
-  { rank: 5, name: 'Hoàng Hải Đăng', archetype: 'warrior', level: 12, exp: 1650, consecutiveDays: 8, guildName: 'Đội Rồng Lửa' },
-  { rank: 6, name: 'Trần Mỹ Dung', archetype: 'mage', level: 11, exp: 1420, consecutiveDays: 9, guildName: 'Sấm Sét' },
-  { rank: 7, name: 'Đỗ Tiến Đạt', archetype: 'ninja', level: 10, exp: 1210, consecutiveDays: 7, guildName: 'Đội Rồng Lửa' }
+  { rank: 1, name: 'Nguyễn Minh Quân', archetype: 'warrior', level: 15, exp: 2450, consecutiveDays: 14, guildName: 'Chi nhánh TP. Thủ Đức (TP.HCM)' },
+  { rank: 2, name: 'Lê Quỳnh Chi', archetype: 'mage', level: 14, exp: 2150, consecutiveDays: 12, guildName: 'Chi nhánh Quận 7 (TP.HCM)' },
+  { rank: 3, name: 'Vũ Nam Khánh', archetype: 'ninja', level: 13, exp: 1980, consecutiveDays: 10, guildName: 'Chi nhánh Quận Bình Thạnh (TP.HCM)' },
+  { rank: 4, name: 'Phạm Minh Trí', archetype: 'stem', level: 13, exp: 1870, consecutiveDays: 11, guildName: 'Chi nhánh TP. Thủ Đức (TP.HCM)' },
+  { rank: 5, name: 'Hoàng Hải Đăng', archetype: 'warrior', level: 12, exp: 1650, consecutiveDays: 8, guildName: 'Chi nhánh Quận 7 (TP.HCM)' },
+  { rank: 6, name: 'Trần Mỹ Dung', archetype: 'mage', level: 11, exp: 1420, consecutiveDays: 9, guildName: 'Chi nhánh Quận Bình Thạnh (TP.HCM)' },
+  { rank: 7, name: 'Đỗ Tiến Đạt', archetype: 'ninja', level: 10, exp: 1210, consecutiveDays: 7, guildName: 'Chi nhánh Quận 7 (TP.HCM)' }
 ];
 
 export const GUILDS: Guild[] = [
-  { id: 'g_dragons', name: 'Đội Rồng Lửa', logo: '🔥', membersCount: 15, totalExp: 32000, level: 5, leader: 'Lê Quỳnh Chi' },
-  { id: 'g_lightning', name: 'Đội Sấm Sét', logo: '⚡', membersCount: 12, totalExp: 28000, level: 4, leader: 'Vũ Nam Khánh' },
-  { id: 'g_knights', name: 'Hiệp Sĩ Tri Thức', logo: '🛡️', membersCount: 18, totalExp: 41000, level: 6, leader: 'Nguyễn Minh Quân' }
+  { id: 'g_binh_thanh', name: 'Chi nhánh Quận Bình Thạnh (TP.HCM)', logo: '🛡️', membersCount: 14, totalExp: 24500, level: 4, leader: 'Cô Ngọc Mai' },
+  { id: 'g_q7', name: 'Chi nhánh Quận 7 (TP.HCM)', logo: '🔥', membersCount: 12, totalExp: 18200, level: 3, leader: 'Thầy Minh Huy' },
+  { id: 'g_binh_tan', name: 'Chi nhánh Quận Bình Tân (TP.HCM)', logo: '⚡', membersCount: 9, totalExp: 12000, level: 2, leader: 'Cô Linh Chi' },
+  { id: 'g_q12', name: 'Chi nhánh Quận 12 (TP.HCM)', logo: '🏆', membersCount: 11, totalExp: 15500, level: 3, leader: 'Thầy Khải Đinh' },
+  { id: 'g_thu_duc', name: 'Chi nhánh TP. Thủ Đức (TP.HCM)', logo: '⭐', membersCount: 18, totalExp: 31000, level: 6, leader: 'Thầy Nam Khánh' },
+  { id: 'g_tan_binh', name: 'Chi nhánh Quận Tân Bình (TP.HCM)', logo: '🐉', membersCount: 15, totalExp: 22400, level: 4, leader: 'Cô Thảo Vy' },
+  { id: 'g_thuan_an', name: 'Chi nhánh TP. Thuận An (Bình Dương)', logo: '🦁', membersCount: 8, totalExp: 9500, level: 1, leader: 'Cô Kim Liên' },
+  { id: 'g_thu_dau_mot', name: 'Chi nhánh TP. Thủ Dầu Một (Bình Dương)', logo: '🦊', membersCount: 10, totalExp: 14300, level: 2, leader: 'Thầy Quốc Cường' },
+  { id: 'g_di_an', name: 'Chi nhánh TP. Dĩ An (Bình Dương)', logo: '🐼', membersCount: 13, totalExp: 19100, level: 3, leader: 'Cô Thủy Tiên' },
+  { id: 'g_tan_uyen', name: 'Chi nhánh TP. Tân Uyên (Bình Dương)', logo: '🤖', membersCount: 7, totalExp: 8200, level: 1, leader: 'Thầy Anh Tuấn' },
+  { id: 'g_bien_hoa', name: 'Chi nhánh TP. Biên Hòa (Đồng Nai)', logo: '💎', membersCount: 16, totalExp: 27500, level: 5, leader: 'Cô Hoài Thương' },
+  { id: 'g_long_thanh', name: 'Chi nhánh Huyện Long Thành (Đồng Nai)', logo: '🏫', membersCount: 6, totalExp: 6000, level: 1, leader: 'Thầy Đỗ Tiến' }
 ];
