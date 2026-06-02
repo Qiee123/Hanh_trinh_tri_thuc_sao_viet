@@ -379,49 +379,78 @@ export default function CharacterCreate({ onCreated }: CharacterCreateProps) {
     e.preventDefault();
 
     // 1. Kiểm tra tài khoản Giáo Viên / Admin đặc biệt
-    const isTeacher = loginPhone.trim().toLowerCase() === 'admin' && loginPassword === 'admin';
-    if (isTeacher) {
-      const TEACHER_PLAYER_PROFILE: Player = {
-        id: 'admin_teacher',
-        name: 'Giáo Viên Quản Trị',
-        grade: 'grade_5',
-        archetype: 'ninja',
-        level: 99,
-        exp: 0,
-        expToNextLevel: 100,
-        hp: 999,
-        maxHp: 999,
-        gold: 99999,
-        gem: 999,
-        title: 'Giáo Viên Sao Việt',
-        consecutiveDays: 1,
-        totalDays: 1,
-        lastCheckInDate: new Date().toISOString(),
-        checkedInToday: true,
-        checkInHistory: [],
-        stats: { attack: 99, defense: 99, intelligence: 99, luck: 99 },
-        inventory: [],
-        equipped: { weapon: null, armor: null, shield: null, ring: null },
-        pet: null,
-        petLevel: 1,
-        petExp: 0,
-        unlockedRegions: ['region_1', 'region_2', 'region_3', 'region_4', 'region_5'],
-        completedStages: { region_1: 15, region_2: 12, region_3: 8 },
-        achievements: [],
-        unlockedTitles: ['Giáo Viên Sao Việt'],
-        mailRead: [],
-        mailClaimed: [],
-        guildId: null,
-        phoneNumber: 'admin',
-        password: 'admin',
-        classCode: 'SYSTEM_ADMIN'
-      };
+    if (loginPhone.trim().toLowerCase() === 'admin') {
+      let targetPassword = 'Da0356894512';
+      let fetchedProfile: Player | null = null;
+      try {
+        const adminDocRef = doc(db, 'players', 'admin_teacher');
+        const adminSnap = await getDoc(adminDocRef);
+        if (adminSnap.exists()) {
+          const data = adminSnap.data() as Player;
+          if (data && data.password) {
+            targetPassword = data.password;
+            fetchedProfile = data;
+          }
+        }
+      } catch (err) {
+        console.error('Error loading admin teacher password:', err);
+      }
 
-      sound.playLevelUp();
-      localStorage.setItem('stv_player', JSON.stringify(TEACHER_PLAYER_PROFILE));
-      alert(`🎉 Đăng nhập thành công với vai trò GIÁO VIÊN! Chào mừng Thầy/Cô trở lại Hệ thống quản lý.`);
-      onCreated(TEACHER_PLAYER_PROFILE);
-      return;
+      if (loginPassword === targetPassword) {
+        const TEACHER_PLAYER_PROFILE: Player = fetchedProfile || {
+          id: 'admin_teacher',
+          name: 'Giáo Viên Quản Trị',
+          grade: 'grade_5',
+          archetype: 'ninja',
+          level: 99,
+          exp: 0,
+          expToNextLevel: 100,
+          hp: 999,
+          maxHp: 999,
+          gold: 99999,
+          gem: 999,
+          title: 'Giáo Viên Sao Việt',
+          consecutiveDays: 1,
+          totalDays: 1,
+          lastCheckInDate: new Date().toISOString(),
+          checkedInToday: true,
+          checkInHistory: [],
+          stats: { attack: 99, defense: 99, intelligence: 99, luck: 99 },
+          inventory: [],
+          equipped: { weapon: null, armor: null, shield: null, ring: null },
+          pet: null,
+          petLevel: 1,
+          petExp: 0,
+          unlockedRegions: ['region_1', 'region_2', 'region_3', 'region_4', 'region_5'],
+          completedStages: { region_1: 15, region_2: 12, region_3: 8 },
+          achievements: [],
+          unlockedTitles: ['Giáo Viên Sao Việt'],
+          mailRead: [],
+          mailClaimed: [],
+          guildId: null,
+          phoneNumber: 'admin',
+          password: targetPassword,
+          classCode: 'SYSTEM_ADMIN'
+        };
+
+        // Nếu thông tin tài khoản admin chưa được lưu trên đám mây, lưu ngay để khởi lập
+        if (!fetchedProfile) {
+          try {
+            await setDoc(doc(db, 'players', 'admin_teacher'), TEACHER_PLAYER_PROFILE);
+          } catch (writeErr) {
+            console.error('Error seeding admin teacher to Firestore on login:', writeErr);
+          }
+        }
+
+        sound.playLevelUp();
+        localStorage.setItem('stv_player', JSON.stringify(TEACHER_PLAYER_PROFILE));
+        alert(`🎉 Đăng nhập thành công với vai trò GIÁO VIÊN! Chào mừng Thầy/Cô trở lại Hệ thống quản lý.`);
+        onCreated(TEACHER_PLAYER_PROFILE);
+        return;
+      } else {
+        alert(`⚠️ Mật khẩu quản trị chưa chính xác. Vui lòng kiểm tra lại!`);
+        return;
+      }
     }
     
     const processedPhone = loginPhone.replace(/\D/g, '');

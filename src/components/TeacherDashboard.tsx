@@ -151,6 +151,14 @@ export default function TeacherDashboard({
   // Chi tiết ca học đang được click xem danh sách trong biểu đồ ca học
   const [viewingShiftKey, setViewingShiftKey] = useState<{ days: '2-4-6' | '3-5-7'; shift: string } | null>(null);
 
+  // Trạng thái Đổi mật khẩu Admin
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [changePasswordError, setChangePasswordError] = useState('');
+  const [changePasswordSuccess, setChangePasswordSuccess] = useState('');
+
   // Danh sách các Ca học mặc định
   const SHIFT_OPTIONS = [
     'Ca 1: 08:30 – 10:00',
@@ -437,15 +445,114 @@ export default function TeacherDashboard({
   }, [students, selectedStudentId]);
 
   // Xử lý đăng nhập
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username.trim().toLowerCase() === 'admin' && password === 'admin') {
+    setLoginError('');
+
+    if (username.trim().toLowerCase() !== 'admin') {
+      sound.playClick();
+      setLoginError('Tài khoản hoặc mật khẩu không chính xác!');
+      return;
+    }
+
+    let targetPassword = 'Da0356894512';
+    try {
+      const adminDocRef = doc(db, 'players', 'admin_teacher');
+      const adminSnap = await getDoc(adminDocRef);
+      if (adminSnap.exists()) {
+        const data = adminSnap.data();
+        if (data && data.password) {
+          targetPassword = data.password;
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching admin password during login in TeacherDashboard:', err);
+    }
+
+    if (password === targetPassword) {
       sound.playLevelUp();
       setIsLoggedIn(true);
       setLoginError('');
     } else {
       sound.playClick();
-      setLoginError('Tài khoản hoặc mật khẩu không chính xác! Gợi ý: admin / admin');
+      setLoginError(`Tài khoản hoặc mật khẩu không chính xác!\nGợi ý: admin / Da0356894512 (hoặc mật khẩu mới đổi).`);
+    }
+  };
+
+  // Xử lý đổi mật khẩu admin giáo viên
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangePasswordError('');
+    setChangePasswordSuccess('');
+
+    if (!currentPasswordInput || !newPasswordInput || !confirmPasswordInput) {
+      setChangePasswordError('Vui lòng điền đầy đủ tất cả các trường!');
+      sound.playClick();
+      return;
+    }
+
+    if (newPasswordInput.length < 4) {
+      setChangePasswordError('Mật khẩu mới phải có ít nhất 4 ký tự!');
+      sound.playClick();
+      return;
+    }
+
+    if (newPasswordInput !== confirmPasswordInput) {
+      setChangePasswordError('Mật khẩu mới và xác nhận mật khẩu không khớp!');
+      sound.playClick();
+      return;
+    }
+
+    // Load active admin password from Firestore (to verify currentPasswordInput)
+    let currentAdminPassword = activePlayer.password || 'Da0356894512';
+    try {
+      const adminDocRef = doc(db, 'players', 'admin_teacher');
+      const adminSnap = await getDoc(adminDocRef);
+      if (adminSnap.exists()) {
+        const data = adminSnap.data();
+        if (data && data.password) {
+          currentAdminPassword = data.password;
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching admin password during change password:', err);
+    }
+
+    if (currentPasswordInput !== currentAdminPassword) {
+      setChangePasswordError('Mật khẩu hiện tại chưa chính xác!');
+      sound.playClick();
+      return;
+    }
+
+    try {
+      // Cập nhật lên Firestore
+      const adminDocRef = doc(db, 'players', 'admin_teacher');
+      const updatedProfile = {
+        ...activePlayer,
+        password: newPasswordInput
+      };
+      await setDoc(adminDocRef, updatedProfile, { merge: true });
+
+      // Cập nhật bộ nhớ cục bộ local & parent state
+      localStorage.setItem('stv_player', JSON.stringify(updatedProfile));
+      onUpdateActivePlayer(updatedProfile);
+
+      sound.playLevelUp();
+      setChangePasswordSuccess('🎉 Thay đổi mật khẩu quản trị giáo viên thành công!');
+      
+      // Reset input fields
+      setCurrentPasswordInput('');
+      setNewPasswordInput('');
+      setConfirmPasswordInput('');
+      
+      setTimeout(() => {
+        setShowChangePasswordModal(false);
+        setChangePasswordSuccess('');
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to update admin password in Firestore:', err);
+      setChangePasswordError('Gặp sự cố khi ghi dữ liệu lên đám mây. Vui lòng thử lại!');
+      sound.playClick();
     }
   };
 
@@ -978,7 +1085,7 @@ export default function TeacherDashboard({
             </label>
             <input
               type="password"
-              placeholder="Nhập 'admin'"
+              placeholder="Nhập mật khẩu..."
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white/80 font-bold text-slate-800 text-sm"
@@ -987,7 +1094,7 @@ export default function TeacherDashboard({
           </div>
 
           <div className="bg-amber-50 border border-amber-300 p-3 rounded-xl text-[10px] text-amber-900 leading-normal font-bold">
-            💡 <strong>Xác thực giáo sinh Sao Việt:</strong> Hãy sử dụng tài khoản <strong>admin</strong> và mật khẩu <strong>admin</strong> để khởi chạy quyền quản trị lớp học!
+            💡 <strong>Xác thực giáo sinh Sao Việt:</strong> Hãy sử dụng tài khoản <strong>admin</strong> và mật khẩu <strong>Da0356894512</strong> (hoặc mật khẩu thầy cô đã đổi) để khởi chạy quyền quản trị lớp học!
           </div>
 
           <div className="pt-2 flex gap-2">
@@ -1045,6 +1152,15 @@ export default function TeacherDashboard({
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2 self-stretch md:self-auto w-full md:w-auto">
+          <button
+            onClick={() => {
+              sound.playClick();
+              setShowChangePasswordModal(true);
+            }}
+            className="px-4 py-2 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs uppercase rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer flex-1 sm:flex-none"
+          >
+            <Key className="w-4 h-4 text-indigo-600" /> Đổi mật khẩu
+          </button>
           <button
             onClick={() => {
               sound.playClick();
@@ -2384,6 +2500,94 @@ export default function TeacherDashboard({
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* MODAL ĐỔI MẬT KHẨU QUẢN TRỊ VIÊN */}
+      {showChangePasswordModal && (
+        <div className="fixed inset-0 bg-indigo-950/40 backdrop-blur-md flex items-center justify-center z-50 p-4" id="change-password-modal-container">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 border border-slate-200 shadow-2xl relative animate-fade-in">
+            <h3 className="text-lg font-black text-indigo-950 uppercase mb-4 flex items-center gap-2">
+              <Key className="w-5 h-5 text-indigo-600 animate-pulse" /> Đổi Mật Khẩu Admin
+            </h3>
+            
+            {changePasswordError && (
+              <div className="mb-3 bg-rose-50 border border-rose-200 text-rose-800 px-3 py-2.5 rounded-xl text-xs font-bold leading-relaxed">
+                ⚠️ {changePasswordError}
+              </div>
+            )}
+            
+            {changePasswordSuccess && (
+              <div className="mb-3 bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-2.5 rounded-xl text-xs font-bold leading-relaxed">
+                {changePasswordSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                  Mật khẩu hiện tại:
+                </label>
+                <input
+                  required
+                  type="password"
+                  placeholder="Mật khẩu đang sử dụng"
+                  value={currentPasswordInput}
+                  onChange={(e) => setCurrentPasswordInput(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                  Mật khẩu mới:
+                </label>
+                <input
+                  required
+                  type="password"
+                  placeholder="Tối thiểu 4 ký tự"
+                  value={newPasswordInput}
+                  onChange={(e) => setNewPasswordInput(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                  Xác nhận mật khẩu mới:
+                </label>
+                <input
+                  required
+                  type="password"
+                  placeholder="Nhập lại mật khẩu mới"
+                  value={confirmPasswordInput}
+                  onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 text-xs"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playClick();
+                    setShowChangePasswordModal(false);
+                    setChangePasswordError('');
+                    setChangePasswordSuccess('');
+                  }}
+                  className="flex-1 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-xs uppercase cursor-pointer transition text-center"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl text-xs uppercase cursor-pointer transition text-center"
+                >
+                  Cập nhật
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
